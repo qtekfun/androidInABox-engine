@@ -62,8 +62,8 @@ fun AddAppScreen(vm: HostViewModel, userId: Int, onBack: () -> Unit) {
     LaunchedEffect(userId) { vm.loadInstalled(userId) }
     LaunchedEffect(Unit) { vm.messages.collect { snack.showSnackbar(it) } }
 
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) vm.install(uri, userId) { ok -> if (ok) onBack() }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) vm.install(uris, userId) { ok -> if (ok) onBack() }
     }
 
     Scaffold(

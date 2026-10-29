@@ -112,7 +112,7 @@ private fun GmsCard(bean: GmsBean, enabled: Boolean, vm: HostViewModel, onInstal
     var showFiles by remember { mutableStateOf(false) }
     val steps = listOf(R.string.gms_step_gsf, R.string.gms_step_core, R.string.gms_step_store)
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) vm.install(uri, bean.userID) { ok -> if (ok && step < steps.size) step++ }
+        if (uri != null) vm.install(listOf(uri), bean.userID) { ok -> if (ok && step < steps.size) step++ }
     }
 
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {

@@ -231,7 +231,18 @@ class HostViewModel : ViewModel() {
         }
     }
 
-    fun install(uri: Uri, userId: Int, onDone: (Boolean) -> Unit = {}) = install(uri.toString(), userId, onDone)
+    /** Instala uno o varios ficheros (APK sueltos o bundles) como un unico conjunto. */
+    fun install(uris: List<Uri>, userId: Int, onDone: (Boolean) -> Unit = {}) {
+        viewModelScope.launch {
+            _busy.value = true
+            val msg = awaitLive<String> { appsRepo.installUris(uris.map { it.toString() }, userId, it) }
+            _busy.value = false
+            if (msg != null) say(msg)
+            val ok = msg == str(R.string.install_success)
+            refreshProfiles()
+            onDone(ok)
+        }
+    }
 
     // ---- GMS ----
 

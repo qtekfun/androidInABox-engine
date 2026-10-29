@@ -42,7 +42,7 @@
     <string name="add_already">Ya añadida</string>
     <string name="add_no_results">No se encontraron apps</string>
     <string name="add_files_title">Instalar desde un archivo</string>
-    <string name="add_files_body">Elige un APK o un paquete como APKS, XAPK o APKM. Se instalará solo dentro de este perfil.</string>
+    <string name="add_files_body">Elige uno o varios APK, o un paquete como APKS, XAPK o APKM. Se instalará solo dentro de este perfil.</string>
     <string name="add_files_pick">Elegir archivo</string>
     <string name="add_installing">Instalando…</string>
 
