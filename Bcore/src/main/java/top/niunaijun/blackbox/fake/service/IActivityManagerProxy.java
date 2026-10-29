@@ -29,6 +29,7 @@ import black.android.content.BRContentProviderNative;
 import black.android.content.pm.BRUserInfo;
 import black.android.util.BRSingleton;
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.core.GmsCore;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.core.env.AppSystemEnv;
 import top.niunaijun.blackbox.entity.AppConfig;
@@ -145,15 +146,16 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                     args[1] = BlackBoxCore.getHostPkg();
                 }
 
-                if (auth.equals("settings")
-                        || auth.equals("media")
-                        || auth.equals("telephony")
-                        || ((String) auth).contains("com.google.android.gms")
-                        || ((String) auth).contains("com.android.vending")
-                        || ((String) auth).contains("com.google.android.gsf")
-                        || auth.equals("com.google.android.gms.chimera")
-                        || auth.equals("com.huawei.android.launcher.settings")
-                        || auth.equals("com.hihonor.android.launcher.settings")) {
+                // T03.6: un authority de Google se resuelve en el box si el paquete esta instalado ahi
+                boolean googleLike = GmsCore.isGoogleAuthority((String) auth);
+                boolean enBox = googleLike && BlackBoxCore.getBPackageManager()
+                        .resolveContentProvider((String) auth, GET_META_DATA, BActivityThread.getUserId()) != null;
+                boolean pasarAlSistema = GmsCore.shouldPassthroughProvider((String) auth, enBox);
+                if (googleLike) {
+                    Slog.d(TAG, "Provider " + auth + " resuelto en el " + (pasarAlSistema ? "sistema real" : "box")
+                            + " (user " + BActivityThread.getUserId() + ")");
+                }
+                if (pasarAlSistema) {
                     content = method.invoke(who, args);
                     ContentProviderDelegate.update(content, (String) auth);
                     return content;

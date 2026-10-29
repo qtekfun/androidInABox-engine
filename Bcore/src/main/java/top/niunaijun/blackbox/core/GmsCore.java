@@ -111,4 +111,26 @@ public class GmsCore {
     public static boolean isInstalledGoogleService(int userId) {
         return BlackBoxCore.get().isInstalled(GMS_PKG, userId);
     }
+
+    /** Authority que pertenece a servicios de Google (GMS/GSF/Play Store). */
+    public static boolean isGoogleAuthority(String authority) {
+        return authority != null
+                && (authority.contains(GMS_PKG)
+                || authority.contains(VENDING_PKG)
+                || authority.contains(GSF_PKG));
+    }
+
+    /**
+     * Decide si un provider se pasa al sistema real. Los de Google solo se pasan
+     * cuando el paquete NO esta instalado en el box para ese usuario.
+     */
+    public static boolean shouldPassthroughProvider(String authority, boolean resolvedInBox) {
+        if (authority == null) return false;
+        if (isGoogleAuthority(authority)) return !resolvedInBox;
+        return authority.equals("settings")
+                || authority.equals("media")
+                || authority.equals("telephony")
+                || authority.equals("com.huawei.android.launcher.settings")
+                || authority.equals("com.hihonor.android.launcher.settings");
+    }
 }
