@@ -1759,9 +1759,17 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
             }
             int flags = Context.BIND_AUTO_CREATE;
 
+            // El autenticador (p. ej. el de GMS) es una app del box: hay que enlazar con su stub del box,
+            // no con el sistema real, que lo rechaza o ni siquiera lo tiene (ROM sin GMS).
+            Intent boxIntent = intent;
+            try {
+                boxIntent = top.niunaijun.blackbox.core.system.am.BActivityManagerService.get()
+                        .bindService(intent, null, null, mAccounts.userId);
+            } catch (Throwable e) {
+                Log.w(TAG, "No se pudo resolver el autenticador en el box: " + componentName, e);
+            }
 
-
-            if (!mContext.bindService(intent, this, flags)) {
+            if (boxIntent == null || !mContext.bindService(boxIntent, this, flags)) {
                 if (Log.isLoggable(TAG, Log.VERBOSE)) {
                     Log.v(TAG, "bindService to " + componentName + " failed");
                 }
