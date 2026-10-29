@@ -67,7 +67,9 @@ class MainActivity : LoadingActivity() {
             checkStoragePermission()
 
             
-            checkVpnPermission()
+            if (AppManager.mBlackBoxLoader.useVpnNetwork()) {
+                checkVpnPermission()
+            }
 
             try {
                 BlackBoxCore.get().onAfterMainActivityOnCreate(this)

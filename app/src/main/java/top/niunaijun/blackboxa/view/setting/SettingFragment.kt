@@ -1,6 +1,9 @@
 package top.niunaijun.blackboxa.view.setting
 
+import android.net.VpnService
 import android.os.Bundle
+import android.util.Log
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import top.niunaijun.blackbox.BlackBoxCore
@@ -61,6 +64,17 @@ class SettingFragment : PreferenceFragmentCompat() {
         }
     }
 
+    private val vpnPermissionResult =
+        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { }
+
+    private fun requestVpnPermission() {
+        try {
+            VpnService.prepare(requireContext())?.let { vpnPermissionResult.launch(it) }
+        } catch (e: Exception) {
+            Log.e("SettingFragment", "Error requesting VPN permission: ${e.message}")
+        }
+    }
+
     private fun invalidHideState(block: () -> Preference) {
         val pref = block()
         pref.setOnPreferenceChangeListener { preference, newValue ->
@@ -75,6 +89,9 @@ class SettingFragment : PreferenceFragmentCompat() {
                 }
                 "use_vpn_network" -> {
                     AppManager.mBlackBoxLoader.invalidUseVpnNetwork(tmpHide)
+                    if (tmpHide) {
+                        requestVpnPermission()
+                    }
                 }
                 "disable_flag_secure" -> {
                     AppManager.mBlackBoxLoader.invalidDisableFlagSecure(tmpHide)
