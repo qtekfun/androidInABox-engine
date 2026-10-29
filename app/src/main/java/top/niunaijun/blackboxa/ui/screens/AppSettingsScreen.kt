@@ -22,6 +22,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +41,7 @@ fun AppSettingsScreen(vm: HostViewModel, userId: Int, pkg: String, onBack: () ->
     val app = apps.firstOrNull { it.packageName == pkg }
     val context = LocalContext.current
     val profile = vm.profileName(userId)
+    var spoof by remember(pkg, userId) { mutableStateOf(vm.isSpoofEnabled(pkg, userId)) }
 
     Scaffold(topBar = { AiabTopBar(stringResource(R.string.appsettings_title), onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState())) {
@@ -65,7 +70,9 @@ fun AppSettingsScreen(vm: HostViewModel, userId: Int, pkg: String, onBack: () ->
                 leadingContent = { Icon(Icons.Filled.PhonelinkSetup, contentDescription = null) },
                 headlineContent = { Text(stringResource(R.string.appsettings_spoof)) },
                 supportingContent = { Text(stringResource(R.string.appsettings_spoof_body)) },
-                trailingContent = { Switch(checked = false, onCheckedChange = null, enabled = false) },
+                trailingContent = {
+                    Switch(checked = spoof, onCheckedChange = { spoof = it; vm.setSpoofEnabled(pkg, userId, it) })
+                },
             )
         }
     }

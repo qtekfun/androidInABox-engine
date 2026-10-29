@@ -50,7 +50,7 @@
     <string name="appsettings_notifications">Notificaciones</string>
     <string name="appsettings_notifications_body">Gestiona cómo te avisa esta app a través de androidInABox</string>
     <string name="appsettings_spoof">Suplantar propiedades del dispositivo</string>
-    <string name="appsettings_spoof_body">Próximamente</string>
+    <string name="appsettings_spoof_body">Se aplica al reiniciar la app. Apagado: la app ve los valores reales del dispositivo.</string>
     <string name="appsettings_package">Paquete</string>
     <string name="appsettings_profile">Perfil</string>
 

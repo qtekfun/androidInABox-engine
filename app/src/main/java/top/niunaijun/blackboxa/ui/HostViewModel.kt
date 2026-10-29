@@ -171,6 +171,16 @@ class HostViewModel : ViewModel() {
         }
     }
 
+    /** Opción por app: perfil de propiedades falso. Se aplica al reiniciar la app invitada. */
+    fun isSpoofEnabled(pkg: String, userId: Int): Boolean =
+        try { BlackBoxCore.get().isPropertySpoofEnabled(pkg, userId) } catch (_: Throwable) { false }
+
+    fun setSpoofEnabled(pkg: String, userId: Int, on: Boolean) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try { BlackBoxCore.get().setPropertySpoofEnabled(pkg, userId, on) } catch (_: Throwable) { }
+        }
+    }
+
     fun stop(pkg: String, userId: Int) {
         viewModelScope.launch(Dispatchers.IO) {
             try { BlackBoxCore.get().stopPackage(pkg, userId) } catch (_: Throwable) { }
