@@ -187,6 +187,12 @@
         android:name="android.hardware.nfc"
         android:required="false" />
 
+    <uses-feature
+        android:name="android.hardware.usb.accessory"
+        android:required="false" />
+    <uses-feature
+        android:name="android.hardware.usb.host"
+        android:required="false" />
     
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
 
@@ -242,6 +248,21 @@
             android:enabled="true"
             android:exported="false"
             android:process="@string/black_box_service_name" />
+
+        <!-- Accesorio USB (spec 07): el host lo recoge y lo reenvia a la app del box -->
+        <activity
+            android:name="top.niunaijun.blackbox.core.system.usb.UsbAccessoryActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_ACCESSORY_ATTACHED"
+                android:resource="@xml/usb_accessory_filter" />
+        </activity>
 
         <!-- Reinicio del motor al arrancar el dispositivo o actualizar el host (spec 04) -->
         <receiver

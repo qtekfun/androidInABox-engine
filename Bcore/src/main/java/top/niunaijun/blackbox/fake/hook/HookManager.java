@@ -80,6 +80,7 @@ import top.niunaijun.blackbox.fake.service.ITelephonyRegistryProxy;
 import top.niunaijun.blackbox.fake.service.IUserManagerProxy;
 import top.niunaijun.blackbox.fake.service.IVibratorServiceProxy;
 import top.niunaijun.blackbox.fake.service.IVpnManagerProxy;
+import top.niunaijun.blackbox.fake.service.IUsbManagerProxy;
 import top.niunaijun.blackbox.fake.service.IWifiManagerProxy;
 import top.niunaijun.blackbox.fake.service.IWifiScannerProxy;
 import top.niunaijun.blackbox.fake.service.IWindowManagerProxy;
@@ -173,6 +174,7 @@ public class HookManager {
             addInjector(AppInstrumentation.get());
             
             addInjector(new IWifiManagerProxy());
+            addInjector(new IUsbManagerProxy());
             addInjector(new IWifiScannerProxy());
             addInjector(new ApkAssetsProxy());
             addInjector(new ResourcesManagerProxy());

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Filtro de accesorio de Android Auto: las unidades principales se presentan como
+     fabricante "Android" y modelo "Android Auto" (AOA, sin verificar contra el manifiesto de gearhead). -->
+<resources>
+    <usb-accessory manufacturer="Android" model="Android Auto" />
+    <usb-accessory manufacturer="Google, Inc." model="Android Auto" />
+</resources>
