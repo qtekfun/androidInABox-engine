@@ -20,6 +20,7 @@ import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
 import top.niunaijun.blackbox.core.system.pm.split.SplitsConf;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
+import top.niunaijun.blackbox.core.GooglePrivappPermissions;
 import top.niunaijun.blackbox.entity.pm.InstallOption;
 import top.niunaijun.blackbox.utils.FileUtils;
 import top.niunaijun.blackbox.utils.Slog;
@@ -44,6 +45,10 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
     BPackageSettings getPackageLPw(String name, PackageParser.Package aPackage, InstallOption installOption) {
         BPackageSettings pkgSettings;
         BPackageSettings origSettings = new BPackageSettings();
+        if (installOption != null && GooglePrivappPermissions.isGooglePackage(name)) {
+            // GMS, GSF y Play Store se ven como apps de sistema privilegiadas dentro del box
+            installOption.makePrivilegedVirtual();
+        }
         origSettings.pkg = new BPackage(aPackage);
         origSettings.pkg.installOption = installOption;
         origSettings.installOption = installOption;

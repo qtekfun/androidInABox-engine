@@ -20,6 +20,12 @@ public class InstallOption implements Parcelable {
         return installOption;
     }
 
+    /**
+     * El paquete se expone dentro del box como app de sistema privilegiada (GMS, GSF, Play Store).
+     * No implica copiar del host: eso es {@link #FLAG_SYSTEM}.
+     */
+    public static final int FLAG_PRIVILEGED_VIRTUAL = 1 << 5;
+
     public int flags = 0;
 
     public static InstallOption installBySystem() {
@@ -43,6 +49,11 @@ public class InstallOption implements Parcelable {
 
     public InstallOption makeSplitSet() {
         this.flags |= FLAG_SPLIT_SET;
+        return this;
+    }
+
+    public InstallOption makePrivilegedVirtual() {
+        this.flags |= FLAG_PRIVILEGED_VIRTUAL;
         return this;
     }
 
