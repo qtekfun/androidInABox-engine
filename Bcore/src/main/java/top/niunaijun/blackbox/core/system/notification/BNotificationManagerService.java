@@ -10,6 +10,7 @@ import android.content.Context;
 import android.os.Binder;
 import android.os.Build;
 import android.os.RemoteException;
+import android.service.notification.StatusBarNotification;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -26,10 +27,16 @@ import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
 import top.niunaijun.blackbox.core.system.ISystemService;
 import top.niunaijun.blackbox.core.system.ProcessRecord;
+import top.niunaijun.blackbox.core.system.pm.BPackageManagerService;
+import top.niunaijun.blackbox.core.system.user.BUserHandle;
+import top.niunaijun.blackbox.core.system.pm.PackageMonitor;
+import top.niunaijun.blackbox.fake.frameworks.notification.NotificationPresenter;
+import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
-public class BNotificationManagerService extends IBNotificationManagerService.Stub implements ISystemService {
+public class BNotificationManagerService extends IBNotificationManagerService.Stub implements ISystemService, PackageMonitor {
+    public static final String TAG = "BNotificationManagerService";
     private final static BNotificationManagerService sService = new BNotificationManagerService();
     public static final String CHANNEL_BLACK = "@black-";
     public static final String GROUP_BLACK = "@black-group-";
@@ -47,6 +54,17 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
     @Override
     public void systemReady() {
         mNotificationChannelManager = NotificationChannelManager.get();
+        BPackageManagerService.get().addPackageMonitor(this);
+    }
+
+    // Las notificaciones solo se retiran al desinstalar o borrar datos, no al morir un proceso.
+    @Override
+    public void onPackageUninstalled(String packageName, boolean isRemove, int userId) {
+        deletePackageNotification(packageName, userId);
+    }
+
+    @Override
+    public void onPackageInstalled(String packageName, int userId) {
     }
 
 
@@ -171,8 +189,13 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(Binder.getCallingPid());
         if (processByPid == null)
             return;
-        int notificationId = getNotificationId(userId, id, processByPid.getPackageName());
+        String packageName = processByPid.getPackageName();
+        String realTag = NotificationIds.scoped(userId, packageName, tag);
 
+        if (notification.extras != null) {
+            notification.extras.remove(NotificationPresenter.EXTRA_APP_LABEL);
+            notification.extras.remove(NotificationPresenter.EXTRA_PROFILE_LABEL);
+        }
         if (BuildCompat.isOreo()) {
             NotificationOContext notificationOContext = BRNotificationO.get(notification);
             
@@ -186,11 +209,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
                 notificationOContext._set_mGroupKey(blackGroupId);
             }
         }
-        NotificationRecord notificationRecord = getNotificationRecord(processByPid.getPackageName(), userId);
-        synchronized (notificationRecord.mIds) {
-            notificationRecord.mIds.add(notificationId);
-        }
-        mRealNotificationManager.notify(notificationId, notification);
+        mRealNotificationManager.notify(realTag, id, notification);
     }
 
     @Override
@@ -198,12 +217,20 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(Binder.getCallingPid());
         if (processByPid == null)
             return;
-        int notificationId = getNotificationId(userId, id, processByPid.getPackageName());
-        mRealNotificationManager.cancel(notificationId);
+        mRealNotificationManager.cancel(NotificationIds.scoped(userId, processByPid.getPackageName(), tag), id);
+    }
 
-        NotificationRecord notificationRecord = getNotificationRecord(processByPid.getPackageName(), userId);
-        synchronized (notificationRecord.mIds) {
-            notificationRecord.mIds.remove(notificationId);
+    /** Cancela todo lo publicado por (paquete, perfil), sin tocar lo del host ni lo de otras apps. */
+    private void cancelAllOf(String packageName, int userId) {
+        try {
+            for (StatusBarNotification sbn : mRealNotificationManager.getActiveNotifications()) {
+                if (userId == BUserHandle.USER_ALL ? NotificationIds.isOfPackage(sbn.getTag(), packageName)
+                        : NotificationIds.belongsTo(sbn.getTag(), userId, packageName)) {
+                    mRealNotificationManager.cancel(sbn.getTag(), sbn.getId());
+                }
+            }
+        } catch (Throwable t) {
+            Slog.e(TAG, "No se pudieron listar las notificaciones activas de " + packageName, t);
         }
     }
 
@@ -265,9 +292,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
                 mRealNotificationManager.deleteNotificationChannel(blackChannelId);
             }
         }
-        for (Integer id : notificationRecord.mIds) {
-            mRealNotificationManager.cancel(id);
-        }
+        cancelAllOf(packageName, userId);
         removeNotificationRecord(packageName, userId);
     }
 
@@ -295,9 +320,5 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         if (groupId == null || !groupId.contains(GROUP_BLACK))
             return groupId;
         return groupId.split(GROUP_BLACK)[0];
-    }
-
-    public static int getNotificationId(int userId, int notificationId, String packageName) {
-        return (packageName + userId + notificationId).hashCode();
     }
 }
