@@ -14,6 +14,13 @@
     <string name="profile_apps_count">%1$d apps</string>
     <string name="profile_new">Nuevo perfil</string>
     <string name="profile_rename">Renombrar perfil</string>
+    <string name="profile_menu_for">Menú del perfil %1$s</string>
+    <string name="profile_delete">Eliminar perfil</string>
+    <string name="profile_delete_title">¿Eliminar %1$s?</string>
+    <string name="profile_delete_body">Se eliminará %1$s de forma permanente con todas sus apps, cuentas y datos. No se puede deshacer.</string>
+    <string name="profile_delete_confirm">Eliminar perfil</string>
+    <string name="profile_deleted">%1$s eliminado</string>
+    <string name="profile_delete_failed">No se pudo eliminar %1$s</string>
     <string name="profile_name">Nombre</string>
     <string name="profile_empty_title">Aún no hay perfiles</string>
     <string name="profile_empty_body">Crea tu primer perfil y añade apps.</string>

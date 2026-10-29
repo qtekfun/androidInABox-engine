@@ -379,15 +379,15 @@ class MainActivity : LoadingActivity() {
     private fun updateUserRemark(userId: Int) {
         try {
             var remark =
-                    AppManager.mRemarkSharedPreferences.getString("Remark$userId", "User $userId")
+                    AppManager.mRemarkSharedPreferences.getString("Remark$userId", top.niunaijun.blackboxa.data.ProfileNames.of(userId))
             if (remark.isNullOrEmpty()) {
-                remark = "User $userId"
+                remark = top.niunaijun.blackboxa.data.ProfileNames.of(userId)
             }
 
             viewBinding.toolbarLayout.toolbar.subtitle = remark
         } catch (e: Exception) {
             Log.e(TAG, "Error updating user remark: ${e.message}")
-            viewBinding.toolbarLayout.toolbar.subtitle = "User $userId"
+            viewBinding.toolbarLayout.toolbar.subtitle = top.niunaijun.blackboxa.data.ProfileNames.of(userId)
         }
     }
 

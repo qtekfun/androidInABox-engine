@@ -31,6 +31,7 @@ import top.niunaijun.blackboxa.bean.GmsInstallBean
 import top.niunaijun.blackboxa.bean.InstalledAppBean
 import top.niunaijun.blackboxa.data.AppsRepository
 import top.niunaijun.blackboxa.data.GmsRepository
+import top.niunaijun.blackboxa.data.ProfileNames
 import kotlin.coroutines.resume
 
 data class UiProfile(val id: Int, val name: String, val appCount: Int)
@@ -85,9 +86,7 @@ class HostViewModel : ViewModel() {
 
     private val prefs get() = AppManager.mRemarkSharedPreferences
 
-    fun profileName(id: Int): String =
-        prefs.getString("Remark$id", null)?.takeIf { it.isNotBlank() }
-            ?: str(R.string.profile_default_name, id)
+    fun profileName(id: Int): String = ProfileNames.of(id)
 
     private fun Drawable?.toUiBitmap(): ImageBitmap? = try {
         this?.toBitmap(96, 96)?.asImageBitmap()
@@ -143,6 +142,23 @@ class HostViewModel : ViewModel() {
             try { core.createUser(next) } catch (_: Throwable) { }
             refreshProfiles()
             withContext(Dispatchers.Main) { onCreated(next) }
+        }
+    }
+
+    /** Elimina el perfil con sus apps, cuentas y datos. Solo se llama tras confirmacion explicita. */
+    fun deleteProfile(id: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            _busy.value = true
+            val name = profileName(id)
+            try {
+                BlackBoxCore.get().deleteUser(id)
+                ProfileNames.forget(id)
+                say(str(R.string.profile_deleted, name))
+            } catch (t: Throwable) {
+                say(str(R.string.profile_delete_failed, name))
+            }
+            _busy.value = false
+            refreshProfiles()
         }
     }
 

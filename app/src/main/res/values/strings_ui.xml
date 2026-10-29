@@ -14,6 +14,13 @@
     <string name="profile_apps_count">%1$d apps</string>
     <string name="profile_new">New profile</string>
     <string name="profile_rename">Rename profile</string>
+    <string name="profile_menu_for">Profile menu for %1$s</string>
+    <string name="profile_delete">Delete profile</string>
+    <string name="profile_delete_title">Delete %1$s?</string>
+    <string name="profile_delete_body">This permanently deletes %1$s with all its apps, accounts and data. This cannot be undone.</string>
+    <string name="profile_delete_confirm">Delete profile</string>
+    <string name="profile_deleted">%1$s deleted</string>
+    <string name="profile_delete_failed">Could not delete %1$s</string>
     <string name="profile_name">Name</string>
     <string name="profile_empty_title">No profiles yet</string>
     <string name="profile_empty_body">Create your first profile and add apps to it.</string>

@@ -21,6 +21,13 @@ import androidx.compose.foundation.background
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.foundation.layout.Box
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -63,6 +70,10 @@ fun ProfilesScreen(
 ) {
     val profiles by vm.profiles.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf<UiProfile?>(null) }
+    var deleting by remember { mutableStateOf<UiProfile?>(null) }
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val snack = remember { SnackbarHostState() }
+    LaunchedEffect(Unit) { vm.messages.collect { snack.showSnackbar(it) } }
     LaunchedEffect(Unit) { vm.refreshProfiles() }
     val scroll = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -79,6 +90,7 @@ fun ProfilesScreen(
                 scrollBehavior = scroll,
             )
         },
+        snackbarHost = { SnackbarHost(snack) },
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { vm.createProfile { onOpenProfile(it) } },
@@ -113,9 +125,19 @@ fun ProfilesScreen(
                 }
             }
             items(profiles, key = { it.id }) { p ->
-                ProfileCard(p, onOpen = { onOpenProfile(p.id) }, onRename = { renaming = p })
+                ProfileCard(p, onOpen = { onOpenProfile(p.id) }, onRename = { renaming = p }, onDelete = { deleting = p }, enabled = !busy)
             }
         }
+    }
+
+    deleting?.let { p ->
+        ConfirmDialog(
+            title = stringResource(R.string.profile_delete_title, p.name),
+            text = stringResource(R.string.profile_delete_body, p.name),
+            confirmLabel = stringResource(R.string.profile_delete_confirm),
+            onConfirm = { vm.deleteProfile(p.id) },
+            onDismiss = { deleting = null },
+        )
     }
 
     renaming?.let { p ->
@@ -142,7 +164,14 @@ fun ProfilesScreen(
 }
 
 @Composable
-private fun ProfileCard(p: UiProfile, onOpen: () -> Unit, onRename: () -> Unit) {
+private fun ProfileCard(
+    p: UiProfile,
+    onOpen: () -> Unit,
+    onRename: () -> Unit,
+    onDelete: () -> Unit,
+    enabled: Boolean,
+) {
+    var menu by remember { mutableStateOf(false) }
     Card(
         modifier = Modifier.fillMaxWidth().clickable(role = Role.Button, onClick = onOpen),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
@@ -166,8 +195,23 @@ private fun ProfileCard(p: UiProfile, onOpen: () -> Unit, onRename: () -> Unit) 
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
             }
-            IconButton(onClick = onRename) {
-                Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.profile_rename))
+            Box {
+                IconButton(onClick = { menu = true }) {
+                    Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.profile_menu_for, p.name))
+                }
+                DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.profile_rename)) },
+                        leadingIcon = { Icon(Icons.Filled.Edit, null) },
+                        onClick = { menu = false; onRename() },
+                    )
+                    DropdownMenuItem(
+                        enabled = enabled,
+                        text = { Text(stringResource(R.string.profile_delete), color = MaterialTheme.colorScheme.error) },
+                        leadingIcon = { Icon(Icons.Filled.Delete, null, tint = MaterialTheme.colorScheme.error) },
+                        onClick = { menu = false; onDelete() },
+                    )
+                }
             }
         }
     }

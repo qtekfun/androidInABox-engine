@@ -18,7 +18,7 @@ class GmsRepository {
         BlackBoxCore.get().users.forEach {
             val userId = it.id
             val userName =
-                AppManager.mRemarkSharedPreferences.getString("Remark$userId", "User $userId") ?: ""
+                ProfileNames.of(userId)
             val isInstalled = BlackBoxCore.get().isInstallGms(userId)
             val bean = GmsBean(userId, userName, isInstalled)
             userList.add(bean)
