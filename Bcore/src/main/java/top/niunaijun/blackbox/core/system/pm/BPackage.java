@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import top.niunaijun.blackbox.entity.pm.InstallOption;
+import top.niunaijun.blackbox.utils.compat.SigningCompat;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
@@ -127,7 +128,8 @@ public class BPackage implements Parcelable {
         this.requestedPermissions = aPackage.requestedPermissions;
         if (BuildCompat.isPie()) {
             this.mSigningDetails = new SigningDetails(aPackage.mSigningDetails);
-            this.mSignatures = this.mSigningDetails.signatures;
+            this.mSignatures = SigningCompat.legacySignatures(
+                    this.mSigningDetails.signatures, this.mSigningDetails.pastSigningCertificates);
         } else {
             this.mSignatures = aPackage.mSignatures;
         }
@@ -437,7 +439,10 @@ public class BPackage implements Parcelable {
     }
 
     public static final class SigningDetails implements Parcelable {
+        /** Firmantes actuales del APK. */
         public Signature[] signatures;
+        /** Linaje de rotacion (v3), del mas antiguo al actual; null si no hay rotacion. */
+        public Signature[] pastSigningCertificates;
 
         public static final PackageParser.SigningDetails UNKNOWN = null;
 
@@ -449,18 +454,17 @@ public class BPackage implements Parcelable {
         @Override
         public void writeToParcel(Parcel dest, int flags) {
             dest.writeTypedArray(this.signatures, flags);
+            dest.writeTypedArray(this.pastSigningCertificates, flags);
         }
 
         public SigningDetails(PackageParser.SigningDetails signingDetails) {
-            if (signingDetails.pastSigningCertificates == null) {
-                this.signatures = signingDetails.signatures;
-            } else {
-                this.signatures = signingDetails.pastSigningCertificates;
-            }
+            this.signatures = signingDetails.signatures;
+            this.pastSigningCertificates = signingDetails.pastSigningCertificates;
         }
 
         protected SigningDetails(Parcel in) {
             this.signatures = in.createTypedArray(Signature.CREATOR);
+            this.pastSigningCertificates = in.createTypedArray(Signature.CREATOR);
         }
 
         public static final Creator<SigningDetails> CREATOR = new Creator<SigningDetails>() {

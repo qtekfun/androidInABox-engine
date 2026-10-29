@@ -27,6 +27,8 @@ import java.util.Set;
 import black.android.content.pm.BRApplicationInfoL;
 import black.android.content.pm.BRApplicationInfoN;
 import black.android.content.pm.BRPackageParserSigningDetails;
+import top.niunaijun.blackbox.core.GooglePrivappPermissions;
+import top.niunaijun.blackbox.utils.compat.SigningCompat;
 import black.android.content.pm.BRSigningInfo;
 import black.android.content.res.BRAssetManager;
 import top.niunaijun.blackbox.BlackBoxCore;
@@ -197,10 +199,15 @@ public class PackageManagerCompat {
                 }
             }
         }
+        // Los paquetes de Google y los instalados desde archivo usan SIEMPRE la firma del APK del
+        // box: la del sistema real (si existe) puede ser otra version o no existir.
         PackageInfo base = null;
-        try {
-            base = BlackBoxCore.getContext().getPackageManager().getPackageInfo(p.packageName, flags);
-        } catch (PackageManager.NameNotFoundException ignored) {
+        boolean cloneOfHost = p.installOption != null && p.installOption.isFlag(InstallOption.FLAG_SYSTEM);
+        if (cloneOfHost && !GooglePrivappPermissions.isGooglePackage(p.packageName)) {
+            try {
+                base = BlackBoxCore.getContext().getPackageManager().getPackageInfo(p.packageName, flags);
+            } catch (PackageManager.NameNotFoundException ignored) {
+            }
         }
         if ((flags & PackageManager.GET_SIGNATURES) != 0) {
             if (base == null) {
@@ -212,9 +219,16 @@ public class PackageManagerCompat {
         if (BuildCompat.isPie()) {
             if ((flags & PackageManager.GET_SIGNING_CERTIFICATES) != 0) {
                 if (base == null) {
-                    PackageParser.SigningDetails signingDetails = PackageParser.SigningDetails.UNKNOWN;
-                    BRPackageParserSigningDetails.get(signingDetails)._set_signatures(p.mSigningDetails.signatures);
-                    pi.signingInfo = BRSigningInfo.get()._new(signingDetails);
+                    if (p.mSigningDetails != null) {
+                        pi.signingInfo = SigningCompat.buildSigningInfo(
+                                p.mSigningDetails.signatures, p.mSigningDetails.pastSigningCertificates);
+                    }
+                    if (pi.signingInfo == null && p.mSignatures != null) {
+                        pi.signingInfo = SigningCompat.buildSigningInfo(p.mSignatures, null);
+                    }
+                    if ((flags & PackageManager.GET_SIGNATURES) != 0 && pi.signatures == null) {
+                        pi.signatures = p.mSignatures;
+                    }
                 } else {
                     pi.signingInfo = base.signingInfo;
                 }
@@ -336,6 +350,17 @@ public class PackageManagerCompat {
             }
             if (BRApplicationInfoN.get(ai)._check_credentialProtectedDataDir() != null) {
                 BRApplicationInfoN.get(ai)._set_credentialProtectedDataDir(ai.dataDir);
+            }
+        }
+        if ((p.installOption != null && p.installOption.isFlag(InstallOption.FLAG_PRIVILEGED_VIRTUAL))
+                || GooglePrivappPermissions.isGooglePackage(p.packageName)) {
+            ai.flags = GooglePrivappPermissions.withSystemFlags(ai.flags);
+            if (BuildCompat.isL()) {
+                try {
+                    BRApplicationInfoL.get(ai)._set_privateFlags(
+                            GooglePrivappPermissions.withPrivilegedFlags(BRApplicationInfoL.get(ai).privateFlags()));
+                } catch (Throwable ignored) {
+                }
             }
         }
         fixJar(ai);
