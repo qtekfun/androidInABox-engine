@@ -481,6 +481,20 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         }
     }
 
+    /** El invitado instala por sesiones del box (T03), no por el instalador real del sistema. */
+    @ProxyMethod("getPackageInstaller")
+    public static class GetPackageInstaller extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            try {
+                return top.niunaijun.blackbox.fake.service.installer.VirtualPackageInstaller.createInstaller();
+            } catch (Throwable t) {
+                Slog.w(TAG, "getPackageInstaller virtual no disponible, se usa el real: " + t);
+                return method.invoke(who, args);
+            }
+        }
+    }
+
     @ProxyMethod("getInstallerPackageName")
     public static class GetInstallerPackageName extends MethodHook {
         @Override
