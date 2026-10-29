@@ -9,11 +9,11 @@ android {
     compileSdk rootProject.ext.compileSdkVersion
     ndkVersion = "29.0.13846066"
     defaultConfig {
-        applicationId "top.niunaijun.blackbox"
+        applicationId "com.qtekfun.androidinabox"
         minSdk rootProject.ext.minSdk
         targetSdk rootProject.ext.targetSdkVersion
-        versionCode rootProject.ext.versionCode
-        versionName rootProject.ext.versionName
+        versionCode((System.getenv("AIAB_VERSION_CODE") ?: rootProject.ext.versionCode.toString()) as int)
+        versionName(System.getenv("AIAB_VERSION_NAME") ?: rootProject.ext.versionName)
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
@@ -28,9 +28,21 @@ android {
         }
     }
 
+    signingConfigs {
+        release {
+            def ks = System.getenv("AIAB_KEYSTORE_FILE")
+            if (ks) {
+                storeFile file(ks)
+                storePassword System.getenv("AIAB_KEYSTORE_PASSWORD")
+                keyAlias System.getenv("AIAB_KEY_ALIAS")
+                keyPassword System.getenv("AIAB_KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            signingConfig System.getenv("AIAB_KEYSTORE_FILE") ? signingConfigs.release : signingConfigs.debug
             minifyEnabled true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -55,7 +67,7 @@ android {
     }
     applicationVariants.configureEach { variant ->
         variant.outputs.configureEach { output ->
-            output.outputFileName = "BlackBox_${variant.versionName}_${output.baseName}.apk"
+            output.outputFileName = "androidInABox_${variant.versionName}_${output.baseName}.apk"
         }
     }
 }
