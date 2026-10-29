@@ -1,12 +1,17 @@
 package top.niunaijun.blackbox.core;
 
+import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
+
+import java.io.File;
 
 import java.util.HashSet;
 import java.util.Set;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.entity.pm.InstallResult;
+import top.niunaijun.blackbox.fake.frameworks.BPackageManager;
+import top.niunaijun.blackbox.core.system.user.BUserInfo;
 
 
 public class GmsCore {
@@ -53,6 +58,16 @@ public class GmsCore {
             if (blackBoxCore.isInstalled(packageName, userId)) {
                 continue;
             }
+            // Si otro perfil del box ya tiene el paquete (p. ej. GMS instalado desde archivos), se reutiliza
+            // esa copia: en ROM sin GMS el sistema no tiene nada que clonar.
+            File boxApk = findBoxApk(packageName);
+            if (boxApk != null) {
+                InstallResult fromBox = blackBoxCore.installPackageAsUser(boxApk, userId);
+                if (!fromBox.success) {
+                    return fromBox;
+                }
+                continue;
+            }
             try {
                 BlackBoxCore.getContext().getPackageManager().getApplicationInfo(packageName, 0);
             } catch (PackageManager.NameNotFoundException e) {
@@ -80,6 +95,13 @@ public class GmsCore {
         googleApps.addAll(GOOGLE_SERVICE);
         googleApps.addAll(GOOGLE_APP);
 
+        // En ROM chinas el GMS del sistema suele estar incompleto (p. ej. GSF sin GmsCore). Solo se clona
+        // del sistema si tiene el trío completo; si no, el GMS del box debe instalarse desde archivos.
+        if (findBoxApk(GMS_PKG) == null && !hostHasCompleteGms()) {
+            return new InstallResult().installError(
+                    "El sistema no tiene un GMS completo (GmsCore, GSF y Play Store). Instala GMS desde archivos.");
+        }
+
         InstallResult installResult = installPackages(googleApps, userId);
         if (!installResult.success) {
             uninstallGApps(userId);
@@ -105,7 +127,34 @@ public class GmsCore {
             return true;
         } catch (PackageManager.NameNotFoundException ignored) {
         }
-        return false;
+        // Sin GMS en el sistema (ROM china) basta con que algún perfil del box lo tenga instalado.
+        return findBoxApk(GMS_PKG) != null;
+    }
+
+    /** El sistema real tiene GmsCore, GSF y Play Store instalados. */
+    private static boolean hostHasCompleteGms() {
+        for (String pkg : new String[]{GMS_PKG, GSF_PKG, VENDING_PKG}) {
+            try {
+                BlackBoxCore.getContext().getPackageManager().getApplicationInfo(pkg, 0);
+            } catch (PackageManager.NameNotFoundException e) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** APK de un paquete ya instalado en algún perfil del box, o null. */
+    private static File findBoxApk(String packageName) {
+        try {
+            for (BUserInfo user : BlackBoxCore.get().getUsers()) {
+                ApplicationInfo info = BPackageManager.get().getApplicationInfo(packageName, 0, user.id);
+                if (info != null && info.sourceDir != null && new File(info.sourceDir).exists()) {
+                    return new File(info.sourceDir);
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 
     public static boolean isInstalledGoogleService(int userId) {
