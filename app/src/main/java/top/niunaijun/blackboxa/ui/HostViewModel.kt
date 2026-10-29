@@ -287,10 +287,40 @@ class HostViewModel : ViewModel() {
     private val _gmsError = MutableStateFlow<Map<Int, String>>(emptyMap())
     val gmsError: StateFlow<Map<Int, String>> = _gmsError.asStateFlow()
 
+    /** Perfiles con microG en lugar de GMS real (ADR-0007). */
+    private val _microg = MutableStateFlow<Set<Int>>(emptySet())
+    val microg: StateFlow<Set<Int>> = _microg.asStateFlow()
+
+    /**
+     * Cambia el modo del perfil. Si cambia de verdad, desinstala el conjunto anterior
+     * (GSF, GmsCore y Play Store/Companion) en ese perfil; la confirmación la pide la UI.
+     */
+    fun setGmsMode(userId: Int, microg: Boolean) {
+        viewModelScope.launch {
+            _busy.value = true
+            withContext(Dispatchers.IO) {
+                val core = BlackBoxCore.get()
+                if (core.isMicrogMode(userId) != microg) {
+                    GMS_PACKAGES.forEach { try { core.uninstallPackageAsUser(it, userId) } catch (_: Throwable) {} }
+                    core.setMicrogMode(userId, microg)
+                }
+            }
+            _gmsError.update { it - userId }
+            _busy.value = false
+            say(str(R.string.gms_switched))
+            refreshProfiles()
+            loadGms()
+        }
+    }
+
     fun loadGms() {
         viewModelScope.launch {
             val list = awaitLive<List<GmsBean>> { gmsRepo.getGmsInstalledList(it) }.orEmpty()
             _gms.value = list
+            _microg.value = withContext(Dispatchers.IO) {
+                list.filter { try { BlackBoxCore.get().isMicrogMode(it.userID) } catch (_: Throwable) { false } }
+                    .map { it.userID }.toSet()
+            }
             _gmsPkgs.value = withContext(Dispatchers.IO) {
                 list.associate { b ->
                     b.userID to GMS_PACKAGES.filter {

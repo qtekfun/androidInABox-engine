@@ -30,6 +30,8 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.RadioButtonUnchecked
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilterChip
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
@@ -64,6 +66,8 @@ fun GmsScreen(vm: HostViewModel, onBack: () -> Unit) {
     var confirmInstall by remember { mutableStateOf<GmsBean?>(null) }
     var confirmRemove by remember { mutableStateOf<GmsBean?>(null) }
     var filesFor by remember { mutableStateOf<Int?>(null) }
+    var confirmMode by remember { mutableStateOf<Pair<GmsBean, Boolean>?>(null) }
+    val microgSet by vm.microg.collectAsStateWithLifecycle()
     val pkgs by vm.gmsPkgs.collectAsStateWithLifecycle()
     val errors by vm.gmsError.collectAsStateWithLifecycle()
     val supported = remember { vm.gmsSupported }
@@ -93,6 +97,11 @@ fun GmsScreen(vm: HostViewModel, onBack: () -> Unit) {
                         bean = bean,
                         enabled = supported && !busy,
                         pkgs = pkgs[bean.userID].orEmpty(),
+                        microg = bean.userID in microgSet,
+                        onMode = { toMicrog ->
+                            if (pkgs[bean.userID].isNullOrEmpty()) vm.setGmsMode(bean.userID, toMicrog)
+                            else confirmMode = bean to toMicrog
+                        },
                         error = errors[bean.userID],
                         onInstall = { confirmInstall = bean },
                         onFiles = { filesFor = bean.userID },
@@ -107,9 +116,19 @@ fun GmsScreen(vm: HostViewModel, onBack: () -> Unit) {
         GmsFilesDialog(
             bean = b,
             pkgs = pkgs[b.userID].orEmpty(),
+            microg = b.userID in microgSet,
             busy = busy,
             onPick = { vm.installGmsFiles(b.userID, it) },
             onDismiss = { filesFor = null },
+        )
+    }
+    confirmMode?.let { (b, toMicrog) ->
+        ConfirmDialog(
+            stringResource(R.string.gms_title),
+            stringResource(if (toMicrog) R.string.gms_switch_to_microg else R.string.gms_switch_to_google, b.userName),
+            stringResource(R.string.gms_switch_confirm),
+            onConfirm = { vm.setGmsMode(b.userID, toMicrog) },
+            onDismiss = { confirmMode = null },
         )
     }
     confirmInstall?.let { b ->
@@ -136,6 +155,8 @@ fun GmsScreen(vm: HostViewModel, onBack: () -> Unit) {
 private fun GmsCard(
     bean: GmsBean,
     pkgs: Set<String>,
+    microg: Boolean,
+    onMode: (Boolean) -> Unit,
     error: String?,
     enabled: Boolean,
     onInstall: () -> Unit,
@@ -143,7 +164,7 @@ private fun GmsCard(
     onRemove: () -> Unit,
 ) {
     var menu by remember { mutableStateOf(false) }
-    val complete = GMS_PACKAGES.all { it in pkgs }
+    val complete = (if (microg) listOf(GMS_CORE, GMS_STORE) else GMS_PACKAGES).all { it in pkgs }
     val partial = !complete && pkgs.isNotEmpty()
     val statusRes = when {
         complete -> R.string.gms_installed
@@ -168,12 +189,25 @@ private fun GmsCard(
                     tint = if (complete) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                 )
             }
-            GmsPackageRows(pkgs)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilterChip(
+                    selected = !microg, enabled = enabled,
+                    onClick = { if (microg) onMode(false) },
+                    label = { Text(stringResource(R.string.gms_mode_google)) },
+                )
+                FilterChip(
+                    selected = microg, enabled = enabled,
+                    onClick = { if (!microg) onMode(true) },
+                    label = { Text(stringResource(R.string.gms_mode_microg)) },
+                )
+            }
+            GmsPackageRows(pkgs, microg)
+            if (microg) MicrogHelp()
             if (error != null) {
                 Text(error, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                if (!complete) {
+                if (!complete && !microg) {
                     Button(enabled = enabled, onClick = onInstall) { Text(stringResource(R.string.gms_install)) }
                 }
                 OutlinedButton(enabled = enabled, onClick = onFiles) {
@@ -201,8 +235,22 @@ private fun GmsCard(
 }
 
 @Composable
-private fun GmsPackageRows(pkgs: Set<String>) {
-    val rows = listOf(
+private fun MicrogHelp() {
+    val uri = LocalUriHandler.current
+    Text(stringResource(R.string.gms_microg_help), style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant)
+    TextButton(onClick = { uri.openUri("https://microg.org/download.html") }) {
+        Text(stringResource(R.string.gms_microg_link))
+    }
+}
+
+@Composable
+private fun GmsPackageRows(pkgs: Set<String>, microg: Boolean = false) {
+    val rows = if (microg) listOf(
+        GMS_CORE to R.string.gms_microg_step_core,
+        GMS_STORE to R.string.gms_microg_step_store,
+        GMS_GSF to R.string.gms_microg_step_gsf,
+    ) else listOf(
         GMS_GSF to R.string.gms_step_gsf,
         GMS_CORE to R.string.gms_step_core,
         GMS_STORE to R.string.gms_step_store,
@@ -226,6 +274,7 @@ private fun GmsPackageRows(pkgs: Set<String>) {
 private fun GmsFilesDialog(
     bean: GmsBean,
     pkgs: Set<String>,
+    microg: Boolean,
     busy: Boolean,
     onPick: (List<Uri>) -> Unit,
     onDismiss: () -> Unit,
@@ -239,8 +288,9 @@ private fun GmsFilesDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-                Text(stringResource(R.string.gms_files_body), style = MaterialTheme.typography.bodyMedium)
-                GmsPackageRows(pkgs)
+                Text(stringResource(if (microg) R.string.gms_microg_files_body else R.string.gms_files_body), style = MaterialTheme.typography.bodyMedium)
+                GmsPackageRows(pkgs, microg)
+                if (microg) MicrogHelp()
             }
         },
         confirmButton = {

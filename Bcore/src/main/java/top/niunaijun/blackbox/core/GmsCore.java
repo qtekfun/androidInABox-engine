@@ -61,7 +61,7 @@ public class GmsCore {
             }
             // Si otro perfil del box ya tiene el paquete (p. ej. GMS instalado desde archivos), se reutiliza
             // esa copia: en ROM sin GMS el sistema no tiene nada que clonar.
-            File boxApk = findBoxApk(packageName);
+            File boxApk = findBoxApk(packageName, true);
             if (boxApk != null) {
                 InstallResult fromBox = BlackBoxCore.getBPackageManager().installPackageAsUser(
                         packageName, InstallOption.installExistingForUser(), userId);
@@ -99,7 +99,7 @@ public class GmsCore {
 
         // En ROM chinas el GMS del sistema suele estar incompleto (p. ej. GSF sin GmsCore). Solo se clona
         // del sistema si tiene el trío completo; si no, el GMS del box debe instalarse desde archivos.
-        if (findBoxApk(GMS_PKG) == null && !hostHasCompleteGms()) {
+        if (findBoxApk(GMS_PKG, true) == null && !hostHasCompleteGms()) {
             return new InstallResult().installError(
                     "El sistema no tiene un GMS completo (GmsCore, GSF y Play Store). Instala GMS desde archivos.");
         }
@@ -147,8 +147,14 @@ public class GmsCore {
 
     /** APK de un paquete ya instalado en algún perfil del box, o null. */
     private static File findBoxApk(String packageName) {
+        return findBoxApk(packageName, false);
+    }
+
+    /** Con skipMicrog se ignoran los perfiles en modo microG: su GmsCore no es el GMS real (ADR-0007). */
+    private static File findBoxApk(String packageName, boolean skipMicrog) {
         try {
             for (BUserInfo user : BlackBoxCore.get().getUsers()) {
+                if (skipMicrog && BlackBoxCore.get().isMicrogMode(user.id)) continue;
                 ApplicationInfo info = BPackageManager.get().getApplicationInfo(packageName, 0, user.id);
                 if (info != null && info.sourceDir != null && new File(info.sourceDir).exists()) {
                     return new File(info.sourceDir);

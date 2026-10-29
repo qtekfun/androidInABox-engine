@@ -137,4 +137,17 @@
     <string name="onb_av_body">Algunos móviles (ColorOS, MIUI y similares) muestran un análisis de seguridad con un aviso de \"riesgos\" sobre androidInABox. Es normal, porque la app ejecuta otras apps en su interior. Pulsa \"Ignorar\". Nunca pulses \"Corregir ahora\": podría eliminar la app o sus datos.</string>
     <string name="onb_av_link">Más información</string>
     <string name="onb_step_of">Paso %1$d de %2$d</string>
+    <string name="gms_mode_google">Google (GMS)</string>
+    <string name="gms_mode_microg">microG</string>
+    <string name="gms_mode_label">Servicios en este perfil</string>
+    <string name="gms_microg_help">microG es una alternativa libre a los servicios de Google. Descarga tú mismo sus APK desde https://microg.org/download.html (microG Services, microG Companion y, opcionalmente, GsfProxy) e instálalos aquí; la app no descarga nada.</string>
+    <string name="gms_microg_link">Abrir microg.org/download.html</string>
+    <string name="gms_microg_files_body">Elige los APK de microG: microG Services, microG Companion y, opcionalmente, GsfProxy. Puedes elegirlos todos a la vez o uno a uno; cada uno se reconoce por su nombre de paquete.</string>
+    <string name="gms_microg_step_gsf">GsfProxy (opcional)</string>
+    <string name="gms_microg_step_core">microG Services</string>
+    <string name="gms_microg_step_store">microG Companion</string>
+    <string name="gms_switch_to_microg">¿Cambiar %1$s a microG? Se desinstalarán los servicios de Google instalados en este perfil.</string>
+    <string name="gms_switch_to_google">¿Cambiar %1$s a Google (GMS)? Se desinstalará microG de este perfil.</string>
+    <string name="gms_switch_confirm">Cambiar y desinstalar</string>
+    <string name="gms_switched">Modo cambiado</string>
 </resources>
