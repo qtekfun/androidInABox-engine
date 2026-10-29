@@ -520,6 +520,16 @@ class AppsFragment : Fragment() {
         }
     }
 
+    fun installUris(sources: List<String>) {
+        try {
+            showLoading()
+            viewModel.installUris(sources, userID)
+        } catch (e: Exception) {
+            Log.e(TAG, "Error installing files: ${e.message}")
+            hideLoading()
+        }
+    }
+
     private fun scanUser() {
         try {
             (requireActivity() as? MainActivity)?.scanUser()

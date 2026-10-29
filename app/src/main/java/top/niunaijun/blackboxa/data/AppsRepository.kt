@@ -412,6 +412,48 @@ class AppsRepository {
         }
     }
 
+    /** Instala uno o varios ficheros (APK sueltos y/o bundles) como un unico conjunto de splits. */
+    fun installUris(sources: List<String>, userId: Int, resultLiveData: MutableLiveData<String>) {
+        try {
+            val installResult = BlackBoxCore.get().installPackageAsUser(sources.map { Uri.parse(it) }, userId)
+            if (installResult.success) {
+                updateAppSortList(userId, installResult.packageName, true)
+                resultLiveData.postValue(getString(R.string.install_success))
+            } else {
+                resultLiveData.postValue(
+                        getString(R.string.install_fail, friendlyInstallError(installResult.msg))
+                )
+            }
+            scanUser()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error installing files: ${e.message}")
+            resultLiveData.postValue(
+                    getString(R.string.install_fail, friendlyInstallError(e.message))
+            )
+        }
+    }
+
+    /** Traduce los mensajes del motor a textos claros para el usuario; si no reconoce el error lo deja tal cual. */
+    private fun friendlyInstallError(msg: String?): String {
+        val m = msg ?: return getString(R.string.install_fail_no_msg)
+        return when {
+            m.contains("Falta el APK base") || m.contains("No hay ningún APK") ->
+                    getString(R.string.install_err_missing_base)
+            m.contains("native libraries") || m.contains("does not support") ->
+                    getString(R.string.install_err_abi)
+            m.contains("no es un APK ni un bundle") || m.contains("no contiene APK") ->
+                    getString(R.string.install_err_not_apk)
+            m.contains("Nombres de paquete distintos") || m.contains("versionCode") ||
+                    m.contains("más de un APK base") ->
+                    getString(R.string.install_err_mismatch)
+            m.contains("Espacio insuficiente") -> getString(R.string.install_err_no_space)
+            m.contains("No se puede leer") || m.contains("APK ilegible") ->
+                    getString(R.string.install_err_unreadable)
+            m.contains("Cannot clone") -> getString(R.string.install_err_self)
+            else -> m
+        }
+    }
+
     fun unInstall(packageName: String, userID: Int, resultLiveData: MutableLiveData<String>) {
         try {
             BlackBoxCore.get().uninstallPackageAsUser(packageName, userID)

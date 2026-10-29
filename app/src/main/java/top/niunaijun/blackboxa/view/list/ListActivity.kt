@@ -104,10 +104,18 @@ class ListActivity : BaseActivity() {
         mAdapter.setItems(newList)
     }
 
+    /** Selector multiple: APK sueltos, splits o bundles (.apks, .apkm, .xapk); sin filtro de MIME porque varia. */
     private val openDocumentedResult =
-            registerForActivityResult(ActivityResultContracts.GetContent()) {
-                it?.run { finishWithResult(it.toString()) }
+            registerForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+                if (!uris.isNullOrEmpty()) {
+                    finishWithSources(uris.map { it.toString() })
+                }
             }
+
+    private fun finishWithSources(sources: List<String>) {
+        intent.putExtra("sources", sources.toTypedArray())
+        finishWithResult(sources.first())
+    }
 
     private fun finishWithResult(source: String) {
         intent.putExtra("source", source)
@@ -127,7 +135,7 @@ class ListActivity : BaseActivity() {
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.itemId == R.id.list_choose) {
-            openDocumentedResult.launch("application/vnd.android.package-archive")
+            openDocumentedResult.launch(arrayOf("*/*"))
         }
         return true
     }

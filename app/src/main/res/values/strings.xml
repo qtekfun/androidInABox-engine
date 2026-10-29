@@ -41,6 +41,13 @@
     <string name="install_success">Installed Successfully</string>
     <string name="install_fail">Installed Failed: %s</string>
     <string name="install_fail_no_msg">Installed Failed</string>
+    <string name="install_err_missing_base">The base APK is missing. Select the base APK together with its split APKs, or a complete bundle (.apks, .apkm, .xapk).</string>
+    <string name="install_err_abi">This app has no native libraries compatible with this box (the box runs in a different architecture).</string>
+    <string name="install_err_not_apk">One of the selected files is neither an APK nor a bundle.</string>
+    <string name="install_err_mismatch">The selected files do not belong to the same app or version.</string>
+    <string name="install_err_no_space">Not enough free space to extract the bundle.</string>
+    <string name="install_err_unreadable">A selected file could not be read.</string>
+    <string name="install_err_self">This app cannot be cloned from inside itself.</string>
     <string name="uninstall_success">Uninstalled Successfully</string>
     <string name="uninstall_fail">Uninstalled Failed</string>
     <string name="uninstall_app">Uninstall App</string>

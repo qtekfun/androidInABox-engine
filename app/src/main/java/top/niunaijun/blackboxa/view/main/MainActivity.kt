@@ -398,7 +398,10 @@ class MainActivity : LoadingActivity() {
                         it.data?.let { data ->
                             val userId = data.getIntExtra("userID", 0)
                             val source = data.getStringExtra("source")
-                            if (source != null) {
+                            val sources = data.getStringArrayExtra("sources")
+                            if (sources != null && sources.isNotEmpty()) {
+                                fragmentList[userId].installUris(sources.toList())
+                            } else if (source != null) {
                                 fragmentList[userId].installApk(source)
                             }
                         }

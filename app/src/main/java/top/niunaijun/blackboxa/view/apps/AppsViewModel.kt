@@ -55,6 +55,12 @@ class AppsViewModel(private val repo: AppsRepository) : BaseViewModel() {
         }
     }
 
+    fun installUris(sources: List<String>, userID: Int) {
+        launchOnUI {
+            repo.installUris(sources, userID, resultLiveData)
+        }
+    }
+
     fun unInstall(packageName: String, userID: Int) {
         launchOnUI {
             repo.unInstall(packageName, userID, resultLiveData)
