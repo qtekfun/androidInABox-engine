@@ -29,6 +29,7 @@ import black.android.content.BRContentProviderNative;
 import black.android.content.pm.BRUserInfo;
 import black.android.util.BRSingleton;
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.core.GooglePrivappPermissions;
 import top.niunaijun.blackbox.core.GmsCore;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.core.env.AppSystemEnv;
@@ -857,8 +858,12 @@ public class IActivityManagerProxy extends ClassInvocationStub {
     public static class checkPermission extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            MethodParameterUtils.replaceLastUid(args);
             String permission = (String) args[0];
+            if (GooglePrivappPermissions.isGrantedPermission(permission)
+                    && isGoogleCaller(args)) {
+                return PackageManager.PERMISSION_GRANTED;
+            }
+            MethodParameterUtils.replaceLastUid(args);
             if (permission.equals(Manifest.permission.ACCOUNT_MANAGER)
                     || permission.equals(Manifest.permission.SEND_SMS)) {
                 return PackageManager.PERMISSION_GRANTED;
@@ -880,7 +885,26 @@ public class IActivityManagerProxy extends ClassInvocationStub {
         }
     }
 
-    
+    /** El proceso actual, o el uid consultado dentro del box, es un paquete de Google privilegiado. */
+    private static boolean isGoogleCaller(Object[] args) {
+        try {
+            if (GooglePrivappPermissions.isGooglePackage(BActivityThread.getAppPackageName())) {
+                return true;
+            }
+            if (args.length > 2 && args[2] instanceof Integer) {
+                String[] pkgs = BlackBoxCore.getBPackageManager()
+                        .getPackagesForUid((Integer) args[2]);
+                if (pkgs != null) {
+                    for (String pkg : pkgs) {
+                        if (GooglePrivappPermissions.isGooglePackage(pkg)) return true;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
     private static boolean isAudioPermission(String permission) {
         if (permission == null) return false;
         return permission.equals(Manifest.permission.RECORD_AUDIO)

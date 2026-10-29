@@ -23,6 +23,7 @@ import black.android.app.BRContextImpl;
 import black.android.app.ContextImpl;
 import black.android.content.pm.BRPackageManager;
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.core.GooglePrivappPermissions;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.core.env.AppSystemEnv;
 import top.niunaijun.blackbox.fake.FakeCore;
@@ -414,6 +415,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String permission = (String) args[0];
             String packageName = (String) args[1];
+            if (GooglePrivappPermissions.isGranted(packageName, permission)) {
+                return PackageManager.PERMISSION_GRANTED;
+            }
             
             
             if (isAudioPermission(permission)) {
@@ -448,6 +452,9 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String permission = (String) args[0];
             String packageName = (String) args[1];
+            if (GooglePrivappPermissions.isGranted(packageName, permission)) {
+                return PackageManager.PERMISSION_GRANTED;
+            }
             
             
             if (isAudioPermission(permission)) {
