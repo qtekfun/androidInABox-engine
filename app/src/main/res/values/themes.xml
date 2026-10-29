@@ -29,4 +29,8 @@
         <item name="android:windowBackground">@drawable/splash</item>
     </style>
 
+    <style name="Theme.Aiab" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:forceDarkAllowed" tools:targetApi="q">false</item>
+    </style>
+
 </resources>

@@ -30,16 +30,21 @@
         <activity android:name=".view.setting.SettingActivity" />
         <activity android:name=".view.gms.GmsManagerActivity" />
         <activity
-            android:name=".view.main.WelcomeActivity"
+            android:name=".ui.MainComposeActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/WelcomeTheme">
+            android:theme="@style/Theme.Aiab">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".view.main.WelcomeActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:theme="@style/WelcomeTheme" />
         <activity android:name=".view.list.ListActivity" />
         <activity android:name=".view.fake.FakeManagerActivity" />
 

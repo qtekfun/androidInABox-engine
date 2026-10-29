@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_back">Back</string>
+    <string name="ui_cancel">Cancel</string>
+    <string name="ui_accept">Accept</string>
+    <string name="ui_close">Close</string>
+    <string name="ui_settings">Settings</string>
+    <string name="ui_search">Search</string>
+    <string name="ui_more">More options</string>
+
+    <string name="profiles_title">Profiles</string>
+    <string name="profiles_subtitle">Separate spaces with their own apps and accounts</string>
+    <string name="profile_default_name">Profile %1$d</string>
+    <string name="profile_apps_count">%1$d apps</string>
+    <string name="profile_new">New profile</string>
+    <string name="profile_rename">Rename profile</string>
+    <string name="profile_name">Name</string>
+    <string name="profile_empty_title">No profiles yet</string>
+    <string name="profile_empty_body">Create your first profile and add apps to it.</string>
+
+    <string name="apps_empty_title">This profile is empty</string>
+    <string name="apps_empty_body">Add an app to run it here, isolated from the rest of your phone.</string>
+    <string name="apps_add">Add app</string>
+    <string name="apps_loading">Loading apps…</string>
+    <string name="app_open">Open</string>
+    <string name="app_details">App settings</string>
+    <string name="app_stop_action">Stop</string>
+    <string name="app_clear_data">Clear data</string>
+    <string name="app_shortcut_action">Create shortcut</string>
+    <string name="app_uninstall">Uninstall</string>
+    <string name="app_menu_for">Options for %1$s</string>
+    <string name="app_launch_failed">Could not open the app</string>
+    <string name="app_stopped">App stopped</string>
+    <string name="app_confirm_clear">Delete all data of %1$s in this profile? This cannot be undone.</string>
+    <string name="app_confirm_uninstall">Uninstall %1$s from this profile? Its data will be deleted.</string>
+    <string name="app_delete">Delete</string>
+
+    <string name="add_title">Add app</string>
+    <string name="add_tab_installed">Installed</string>
+    <string name="add_tab_files">From files</string>
+    <string name="add_search_hint">Search by name or package</string>
+    <string name="add_already">Already added</string>
+    <string name="add_no_results">No apps found</string>
+    <string name="add_files_title">Install from a file</string>
+    <string name="add_files_body">Choose an APK, or a bundle such as APKS, XAPK or APKM. It will be installed only inside this profile.</string>
+    <string name="add_files_pick">Choose file</string>
+    <string name="add_installing">Installing…</string>
+
+    <string name="appsettings_title">App settings</string>
+    <string name="appsettings_notifications">Notifications</string>
+    <string name="appsettings_notifications_body">Manage how this app notifies you through androidInABox</string>
+    <string name="appsettings_spoof">Spoof device properties</string>
+    <string name="appsettings_spoof_body">Coming soon</string>
+    <string name="appsettings_package">Package</string>
+    <string name="appsettings_profile">Profile</string>
+
+    <string name="gms_title">Google services</string>
+    <string name="gms_intro">Install Google Mobile Services in a profile so apps that depend on them work. Installation order: services framework, Google Play services, Play Store.</string>
+    <string name="gms_installed">Installed</string>
+    <string name="gms_not_installed">Not installed</string>
+    <string name="gms_install">Install</string>
+    <string name="gms_uninstall">Uninstall</string>
+    <string name="gms_unsupported">Google services are not available on this device or build.</string>
+    <string name="gms_working">Working…</string>
+    <string name="gms_step_gsf">1. Services framework</string>
+    <string name="gms_step_core">2. Google Play services</string>
+    <string name="gms_step_store">3. Play Store</string>
+    <string name="gms_confirm_install">Install Google services in %1$s?</string>
+    <string name="gms_confirm_uninstall">Remove Google services from %1$s?</string>
+
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_privacy">Privacy and compatibility</string>
+    <string name="settings_section_system">System</string>
+    <string name="settings_hide_root">Hide root</string>
+    <string name="settings_hide_root_body">Apps inside will not detect root</string>
+    <string name="settings_daemon">Background service</string>
+    <string name="settings_daemon_body">Keeps apps alive in the background</string>
+    <string name="settings_vpn">Use VPN network</string>
+    <string name="settings_vpn_body">Route traffic through a local VPN service</string>
+    <string name="settings_flag_secure">Allow screenshots</string>
+    <string name="settings_flag_secure_body">Disable the secure-window flag of apps</string>
+    <string name="settings_notif_prefix">Name the app in notifications</string>
+    <string name="settings_notif_prefix_body">Prefix titles with [App · Profile], useful for watches</string>
+    <string name="settings_gms">Google services</string>
+    <string name="settings_battery">Battery and autostart</string>
+    <string name="settings_battery_body">Keep notifications arriving</string>
+    <string name="settings_about">About and licenses</string>
+    <string name="settings_restart">Restart the app to apply the change</string>
+
+    <string name="battery_title">Battery and autostart</string>
+    <string name="battery_intro">Some manufacturers close background apps to save battery. To keep notifications arriving, follow these steps.</string>
+    <string name="battery_step1">Exclude androidInABox from battery optimization.</string>
+    <string name="battery_step2">Allow autostart (called Auto-launch, Protected apps or similar) in your phone settings.</string>
+    <string name="battery_step3">Lock the app in the recent apps screen if your phone offers it.</string>
+    <string name="battery_open_exclusion">Battery optimization</string>
+    <string name="battery_open_app">App settings</string>
+    <string name="battery_excluded">Already excluded</string>
+
+    <string name="about_title">About</string>
+    <string name="about_version">Version %1$s</string>
+    <string name="about_tagline">Isolated spaces for your apps, without root.</string>
+    <string name="about_repo">Project repository</string>
+    <string name="about_licenses">Licenses</string>
+    <string name="about_newblackbox">This app is based on NewBlackbox, licensed under the Apache License, Version 2.0. You may obtain a copy of the license at https://www.apache.org/licenses/LICENSE-2.0. The software is distributed on an \"AS IS\" basis, without warranties or conditions of any kind. Changes have been made to the original code.</string>
+    <string name="about_other_libs">Also uses AndroidX, Jetpack Compose and Material Components (Apache-2.0).</string>
+
+    <string name="onb_next">Next</string>
+    <string name="onb_skip">Skip</string>
+    <string name="onb_finish">Start</string>
+    <string name="onb_grant">Allow</string>
+    <string name="onb_done_step">Done</string>
+    <string name="onb_welcome_title">Welcome to androidInABox</string>
+    <string name="onb_welcome_body">Run copies of your apps in isolated profiles, each with its own accounts and data. A few permissions will help everything work well.</string>
+    <string name="onb_notif_title">Notifications</string>
+    <string name="onb_notif_body">Apps inside publish their notifications through androidInABox, so this app needs permission to show them.</string>
+    <string name="onb_battery_title">Battery</string>
+    <string name="onb_battery_body">Excluding androidInABox from battery optimization helps apps keep running in the background and receive messages.</string>
+    <string name="onb_storage_title">Storage access</string>
+    <string name="onb_storage_body">Needed to choose APK files and let apps inside read and write their files. Nothing leaves your device.</string>
+    <string name="onb_step_of">Step %1$d of %2$d</string>
+</resources>

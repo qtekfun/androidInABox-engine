@@ -16,7 +16,7 @@ class WelcomeActivity : AppCompatActivity() {
 
     private var notificationDialog: AlertDialog? = null
 
-    override fun onNewIntent(intent: Intent?) {
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         proceed()
     }

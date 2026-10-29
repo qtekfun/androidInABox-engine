@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ui_back">Atrás</string>
+    <string name="ui_cancel">Cancelar</string>
+    <string name="ui_accept">Aceptar</string>
+    <string name="ui_close">Cerrar</string>
+    <string name="ui_settings">Ajustes</string>
+    <string name="ui_search">Buscar</string>
+    <string name="ui_more">Más opciones</string>
+
+    <string name="profiles_title">Perfiles</string>
+    <string name="profiles_subtitle">Espacios separados con sus propias apps y cuentas</string>
+    <string name="profile_default_name">Perfil %1$d</string>
+    <string name="profile_apps_count">%1$d apps</string>
+    <string name="profile_new">Nuevo perfil</string>
+    <string name="profile_rename">Renombrar perfil</string>
+    <string name="profile_name">Nombre</string>
+    <string name="profile_empty_title">Aún no hay perfiles</string>
+    <string name="profile_empty_body">Crea tu primer perfil y añade apps.</string>
+
+    <string name="apps_empty_title">Este perfil está vacío</string>
+    <string name="apps_empty_body">Añade una app para ejecutarla aquí, aislada del resto del teléfono.</string>
+    <string name="apps_add">Añadir app</string>
+    <string name="apps_loading">Cargando apps…</string>
+    <string name="app_open">Abrir</string>
+    <string name="app_details">Ajustes de la app</string>
+    <string name="app_stop_action">Detener</string>
+    <string name="app_clear_data">Borrar datos</string>
+    <string name="app_shortcut_action">Crear acceso directo</string>
+    <string name="app_uninstall">Desinstalar</string>
+    <string name="app_menu_for">Opciones de %1$s</string>
+    <string name="app_launch_failed">No se pudo abrir la app</string>
+    <string name="app_stopped">App detenida</string>
+    <string name="app_confirm_clear">¿Borrar todos los datos de %1$s en este perfil? No se puede deshacer.</string>
+    <string name="app_confirm_uninstall">¿Desinstalar %1$s de este perfil? Se borrarán sus datos.</string>
+    <string name="app_delete">Borrar</string>
+
+    <string name="add_title">Añadir app</string>
+    <string name="add_tab_installed">Instaladas</string>
+    <string name="add_tab_files">Desde archivos</string>
+    <string name="add_search_hint">Buscar por nombre o paquete</string>
+    <string name="add_already">Ya añadida</string>
+    <string name="add_no_results">No se encontraron apps</string>
+    <string name="add_files_title">Instalar desde un archivo</string>
+    <string name="add_files_body">Elige un APK o un paquete como APKS, XAPK o APKM. Se instalará solo dentro de este perfil.</string>
+    <string name="add_files_pick">Elegir archivo</string>
+    <string name="add_installing">Instalando…</string>
+
+    <string name="appsettings_title">Ajustes de la app</string>
+    <string name="appsettings_notifications">Notificaciones</string>
+    <string name="appsettings_notifications_body">Gestiona cómo te avisa esta app a través de androidInABox</string>
+    <string name="appsettings_spoof">Suplantar propiedades del dispositivo</string>
+    <string name="appsettings_spoof_body">Próximamente</string>
+    <string name="appsettings_package">Paquete</string>
+    <string name="appsettings_profile">Perfil</string>
+
+    <string name="gms_title">Servicios de Google</string>
+    <string name="gms_intro">Instala los servicios de Google (GMS) en un perfil para que funcionen las apps que dependen de ellos. Orden de instalación: framework de servicios, servicios de Google Play y Play Store.</string>
+    <string name="gms_installed">Instalados</string>
+    <string name="gms_not_installed">No instalados</string>
+    <string name="gms_install">Instalar</string>
+    <string name="gms_uninstall">Desinstalar</string>
+    <string name="gms_unsupported">Los servicios de Google no están disponibles en este dispositivo o versión.</string>
+    <string name="gms_working">Trabajando…</string>
+    <string name="gms_step_gsf">1. Framework de servicios</string>
+    <string name="gms_step_core">2. Servicios de Google Play</string>
+    <string name="gms_step_store">3. Play Store</string>
+    <string name="gms_confirm_install">¿Instalar los servicios de Google en %1$s?</string>
+    <string name="gms_confirm_uninstall">¿Quitar los servicios de Google de %1$s?</string>
+
+    <string name="settings_title">Ajustes</string>
+    <string name="settings_section_privacy">Privacidad y compatibilidad</string>
+    <string name="settings_section_system">Sistema</string>
+    <string name="settings_hide_root">Ocultar root</string>
+    <string name="settings_hide_root_body">Las apps de dentro no detectarán root</string>
+    <string name="settings_daemon">Servicio en segundo plano</string>
+    <string name="settings_daemon_body">Mantiene las apps vivas en segundo plano</string>
+    <string name="settings_vpn">Usar red VPN</string>
+    <string name="settings_vpn_body">Dirige el tráfico por un servicio VPN local</string>
+    <string name="settings_flag_secure">Permitir capturas de pantalla</string>
+    <string name="settings_flag_secure_body">Desactiva el indicador de ventana segura de las apps</string>
+    <string name="settings_notif_prefix">Nombrar la app en las notificaciones</string>
+    <string name="settings_notif_prefix_body">Antepone [App · Perfil] al título, útil para relojes</string>
+    <string name="settings_gms">Servicios de Google</string>
+    <string name="settings_battery">Batería y autoarranque</string>
+    <string name="settings_battery_body">Para que sigan llegando las notificaciones</string>
+    <string name="settings_about">Acerca de y licencias</string>
+    <string name="settings_restart">Reinicia la app para aplicar el cambio</string>
+
+    <string name="battery_title">Batería y autoarranque</string>
+    <string name="battery_intro">Algunos fabricantes cierran las apps en segundo plano para ahorrar batería. Para que sigan llegando las notificaciones, sigue estos pasos.</string>
+    <string name="battery_step1">Excluye androidInABox de la optimización de batería.</string>
+    <string name="battery_step2">Permite el autoarranque (se llama Inicio automático, Apps protegidas o similar) en los ajustes del teléfono.</string>
+    <string name="battery_step3">Fija la app en la pantalla de recientes si tu teléfono lo permite.</string>
+    <string name="battery_open_exclusion">Optimización de batería</string>
+    <string name="battery_open_app">Ajustes de la app</string>
+    <string name="battery_excluded">Ya excluida</string>
+
+    <string name="about_title">Acerca de</string>
+    <string name="about_version">Versión %1$s</string>
+    <string name="about_tagline">Espacios aislados para tus apps, sin root.</string>
+    <string name="about_repo">Repositorio del proyecto</string>
+    <string name="about_licenses">Licencias</string>
+    <string name="about_newblackbox">Esta app se basa en NewBlackbox, con licencia Apache, versión 2.0. Puedes obtener una copia de la licencia en https://www.apache.org/licenses/LICENSE-2.0. El software se distribuye \"TAL CUAL\", sin garantías ni condiciones de ningún tipo. Se han hecho cambios sobre el código original.</string>
+    <string name="about_other_libs">También usa AndroidX, Jetpack Compose y Material Components (Apache-2.0).</string>
+
+    <string name="onb_next">Siguiente</string>
+    <string name="onb_skip">Omitir</string>
+    <string name="onb_finish">Empezar</string>
+    <string name="onb_grant">Permitir</string>
+    <string name="onb_done_step">Hecho</string>
+    <string name="onb_welcome_title">Bienvenido a androidInABox</string>
+    <string name="onb_welcome_body">Ejecuta copias de tus apps en perfiles aislados, cada uno con sus cuentas y datos. Unos pocos permisos ayudarán a que todo funcione bien.</string>
+    <string name="onb_notif_title">Notificaciones</string>
+    <string name="onb_notif_body">Las apps de dentro publican sus notificaciones a través de androidInABox, así que necesita permiso para mostrarlas.</string>
+    <string name="onb_battery_title">Batería</string>
+    <string name="onb_battery_body">Excluir androidInABox de la optimización de batería ayuda a que las apps sigan activas en segundo plano y reciban mensajes.</string>
+    <string name="onb_storage_title">Acceso al almacenamiento</string>
+    <string name="onb_storage_body">Hace falta para elegir archivos APK y para que las apps de dentro lean y escriban sus archivos. Nada sale de tu dispositivo.</string>
+    <string name="onb_step_of">Paso %1$d de %2$d</string>
+</resources>
