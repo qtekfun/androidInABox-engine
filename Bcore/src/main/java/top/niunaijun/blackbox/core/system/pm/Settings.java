@@ -18,6 +18,7 @@ import java.util.Set;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
+import top.niunaijun.blackbox.core.system.pm.split.SplitsConf;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
 import top.niunaijun.blackbox.entity.pm.InstallOption;
 import top.niunaijun.blackbox.utils.FileUtils;
@@ -205,6 +206,11 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
 
             BPackageSettings bPackageSettings = new BPackageSettings(packageSettingsIn);
             bPackageSettings.pkg.mExtras = bPackageSettings;
+            SplitsConf splits = SplitsConf.read(BEnvironment.getSplitsConf(packageName), app);
+            if (!splits.names.isEmpty()) {
+                bPackageSettings.pkg.splitNames = splits.names;
+                bPackageSettings.pkg.splitCodePaths = splits.codePaths;
+            }
             if (bPackageSettings.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {
                 PackageInfo packageInfo = BlackBoxCore.getPackageManager().getPackageInfo(packageName, PackageManager.GET_META_DATA);
                 String currPackageSourcePath = packageInfo.applicationInfo.sourceDir;

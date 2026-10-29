@@ -43,6 +43,10 @@ public class BEnvironment {
         return new File(sVirtualRoot, "cache");
     }
 
+    public static File getSplitsConf(String packageName) {
+        return new File(getAppDir(packageName), "splits.conf");
+    }
+
     public static File getUserInfoConf() {
         return new File(getSystemDir(), "user.conf");
     }

@@ -18,6 +18,7 @@ import android.os.Parcel;
 import android.os.Parcelable;
 
 import java.util.ArrayList;
+import java.util.List;
 
 import top.niunaijun.blackbox.entity.pm.InstallOption;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
@@ -53,6 +54,13 @@ public class BPackage implements Parcelable {
     public ArrayList<FeatureInfo> reqFeatures = null;
 
     public InstallOption installOption;
+
+    /**
+     * Splits instalados (nombres y rutas, mismo orden). No se parcelan: se persisten en
+     * {@code splits.conf} para no cambiar el formato de {@code package.conf}. Null = sin splits.
+     */
+    public transient List<String> splitNames;
+    public transient List<String> splitCodePaths;
 
     public BPackage(PackageParser.Package aPackage) {
         this.activities = new ArrayList<>(aPackage.activities.size());
