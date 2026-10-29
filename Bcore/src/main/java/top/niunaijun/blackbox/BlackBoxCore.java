@@ -59,6 +59,7 @@ import top.niunaijun.blackbox.proxy.ProxyManifest;
 import top.niunaijun.blackbox.utils.FileUtils;
 import top.niunaijun.blackbox.utils.ShellUtils;
 import top.niunaijun.blackbox.utils.Slog;
+import top.niunaijun.blackbox.utils.compat.HiddenApiGate;
 import top.niunaijun.blackbox.utils.SimpleCrashFix;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 import top.niunaijun.blackbox.utils.compat.BundleCompat;
@@ -1643,11 +1644,16 @@ public class BlackBoxCore extends ClientConfiguration {
             throw new IllegalArgumentException("ClientConfiguration is null!");
         }
 
-        if(!NativeCore.disableHiddenApi()){
-            try {
-                Reflection.unseal(context);
-            } catch (Throwable t) {
-                Slog.w(TAG, "Reflection.unseal failed: " + t.getMessage());
+        boolean unlocked = HiddenApiGate.unlock();
+        if (!unlocked) {
+            Slog.w(TAG, "HiddenApiGate.unlock falló en " + Build.MODEL + " (Android " + Build.VERSION.RELEASE
+                    + "); se usa el respaldo");
+            if (!NativeCore.disableHiddenApi()) {
+                try {
+                    Reflection.unseal(context);
+                } catch (Throwable t) {
+                    Slog.w(TAG, "Reflection.unseal failed: " + t.getMessage());
+                }
             }
         }
 
