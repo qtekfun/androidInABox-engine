@@ -27,6 +27,12 @@ public class IAlarmManagerProxy extends BinderInvocationStub {
         replaceSystemService(Context.ALARM_SERVICE);
     }
 
+    /**
+     * Las alarmas del invitado se descartan (pendiente de la spec 04). No afecta a los
+     * PendingIntent: el de broadcast o servicio ya se reescribio al crearlo en
+     * {@code IActivityManagerProxy.GetIntentSender}, de modo que cuando se implementen las
+     * alarmas basta con pasar al sistema ese PendingIntent del host.
+     */
     @ProxyMethod("set")
     public static class Set extends MethodHook {
         @Override
