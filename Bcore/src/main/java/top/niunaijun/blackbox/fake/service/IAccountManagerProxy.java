@@ -124,6 +124,17 @@ public class IAccountManagerProxy extends BinderInvocationStub {
         }
     }
 
+    /** AccountManager.getAccounts()/getAccountsByType() en Android O+: tambien se resuelve dentro del box. */
+    @ProxyMethod("getAccounts")
+    public static class getAccounts extends MethodHook {
+
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return BAccountManager.get().getAccountsAsUser(args != null && args.length > 0 && args[0] instanceof String
+                    ? (String) args[0] : null);
+        }
+    }
+
     @ProxyMethod("addAccountExplicitly")
     public static class addAccountExplicitly extends MethodHook {
 

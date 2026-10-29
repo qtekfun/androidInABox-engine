@@ -50,12 +50,7 @@ public class SimpleCrashFix {
                         return; 
                     }
 
-                    
-                    if (isGooglePlayServicesCrash(throwable)) {
-                        Slog.w(TAG, "Caught Google Play Services crash, preventing crash: " + throwable.getMessage());
-                        return; 
-                    }
-
+                    // Los crashes de GMS ya no se tragan: se registran y los gestiona el handler del sistema.
                     
                     if (isWebViewCrash(throwable)) {
                         Slog.w(TAG, "Caught WebView crash, preventing crash: " + throwable.getMessage());
@@ -135,36 +130,6 @@ public class SimpleCrashFix {
         return false;
     }
     
-    
-    private static boolean isGooglePlayServicesCrash(Throwable throwable) {
-        if (throwable == null) {
-            return false;
-        }
-        
-        String message = throwable.getMessage();
-        if (message != null) {
-            return message.contains("Google Play Services") ||
-                   message.contains("GooglePlayServicesUtil") ||
-                   message.contains("GoogleApiAvailability") ||
-                   message.contains("com.google.android.gms");
-        }
-        
-        
-        StackTraceElement[] stackTrace = throwable.getStackTrace();
-        if (stackTrace != null) {
-            for (StackTraceElement element : stackTrace) {
-                String className = element.getClassName();
-                if (className.contains("com.google.android.gms") ||
-                    className.contains("GooglePlayServicesUtil") ||
-                    className.contains("GoogleApiAvailability")) {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
     
     private static boolean isWebViewCrash(Throwable throwable) {
         if (throwable == null) {
