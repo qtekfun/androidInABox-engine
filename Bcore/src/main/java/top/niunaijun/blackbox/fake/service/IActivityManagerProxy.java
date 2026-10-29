@@ -621,6 +621,10 @@ public class IActivityManagerProxy extends ClassInvocationStub {
             int intentIndex = getIntentIndex(args);
             Intent intent = (Intent) args[intentIndex];
             String resolvedType = (String) args[intentIndex + 1];
+            if (intent.getAction() != null && intent.getAction().toLowerCase().contains("checkin")) {
+                Slog.d(TAG, "broadcast checkin: " + intent + " pkg=" + intent.getPackage()
+                        + " cmp=" + intent.getComponent() + " proceso=" + android.app.Application.getProcessName());
+            }
             Intent proxyIntent = BlackBoxCore.getBActivityManager().sendBroadcast(intent, resolvedType, BActivityThread.getUserId());
             if (proxyIntent != null) {
                 proxyIntent.setExtrasClassLoader(BActivityThread.getApplication().getClassLoader());
