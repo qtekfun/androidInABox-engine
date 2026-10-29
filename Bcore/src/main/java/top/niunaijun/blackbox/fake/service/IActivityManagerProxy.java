@@ -634,6 +634,8 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                     args[i] = null;
                 }
             }
+            // El invitado puede pedir USER_ALL/USER_CURRENT; el sistema real lo niega a apps normales.
+            top.niunaijun.blackbox.utils.BroadcastUserCompat.rewriteUserId(args, (android.os.Process.myUid() / 100000));
             return method.invoke(who, args);
         }
 
@@ -645,6 +647,15 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                 }
             }
             return 1;
+        }
+    }
+
+    @ProxyMethod("unbroadcastIntent")
+    public static class UnbroadcastIntent extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            top.niunaijun.blackbox.utils.BroadcastUserCompat.rewriteUserId(args, (android.os.Process.myUid() / 100000));
+            return method.invoke(who, args);
         }
     }
 
