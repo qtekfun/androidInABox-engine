@@ -22,14 +22,14 @@ public final class GooglePrivileged {
     private GooglePrivileged() {
     }
 
-    static boolean shouldSoften(Method method) {
+    static boolean shouldSoften(Method method, Throwable cause) {
         String pkg = BActivityThread.getAppPackageName();
         if (!GooglePrivappPermissions.isGooglePackage(pkg)) {
             return false;
         }
         String key = method.getDeclaringClass().getSimpleName() + "." + method.getName();
         if (LOGGED.add(key)) {
-            Slog.w(TAG, "SecurityException del sistema real en " + key + " para " + pkg + ": valor por defecto");
+            Slog.w(TAG, "SecurityException del sistema real en " + key + " para " + pkg + ": valor por defecto (" + cause.getMessage() + ")");
         }
         return true;
     }

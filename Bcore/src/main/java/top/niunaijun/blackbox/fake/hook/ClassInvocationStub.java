@@ -119,7 +119,7 @@ public abstract class ClassInvocationStub implements InvocationHandler, IInjectH
                 return method.invoke(mBase, args);
             } catch (Throwable e) {
                 Throwable cause = e.getCause() != null ? e.getCause() : e;
-                if (cause instanceof SecurityException && GooglePrivileged.shouldSoften(method)) {
+                if (cause instanceof SecurityException && GooglePrivileged.shouldSoften(method, cause)) {
                     return GooglePrivileged.defaultValue(method.getReturnType());
                 }
                 throw cause;
@@ -134,7 +134,7 @@ public abstract class ClassInvocationStub implements InvocationHandler, IInjectH
             result = methodHook.hook(mBase, method, args);
         } catch (Throwable e) {
             Throwable cause = e instanceof java.lang.reflect.InvocationTargetException && e.getCause() != null ? e.getCause() : e;
-            if (cause instanceof SecurityException && GooglePrivileged.shouldSoften(method)) {
+            if (cause instanceof SecurityException && GooglePrivileged.shouldSoften(method, cause)) {
                 return GooglePrivileged.defaultValue(method.getReturnType());
             }
             throw cause;
