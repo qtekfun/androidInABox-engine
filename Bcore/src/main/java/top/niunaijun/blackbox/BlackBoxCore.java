@@ -1171,8 +1171,48 @@ public class BlackBoxCore extends ClientConfiguration {
     }
 
     public InstallResult installPackageAsUser(Uri apk, int userId) {
-        
-        return getBPackageManager().installPackageAsUser(apk.toString(), InstallOption.installByStorage().makeUriFile(), userId);
+        // Un solo Uri: puede ser un APK suelto o un bundle (.apks/.apkm/.xapk); se detecta por contenido.
+        return installPackageAsUser(java.util.Collections.singletonList(apk), userId);
+    }
+
+    /**
+     * Instala uno o varios Uri (APK sueltos y/o bundles) como un único conjunto de splits.
+     * Los ficheros se copian a un directorio de staging y se usa la ruta FLAG_SPLIT_SET.
+     */
+    public InstallResult installPackageAsUser(List<Uri> uris, int userId) {
+        if (uris == null || uris.isEmpty()) {
+            return new InstallResult().installError("No hay ficheros para instalar");
+        }
+        File stagingDir = new File(BEnvironment.getCacheDir(), "stage-" + java.util.UUID.randomUUID());
+        boolean handedOver = false;
+        try {
+            FileUtils.mkdirs(stagingDir);
+            int n = 0;
+            for (Uri uri : uris) {
+                File dest = new File(stagingDir, String.format(java.util.Locale.ROOT, "in-%03d", n++));
+                java.io.InputStream in = getContext().getContentResolver().openInputStream(uri);
+                if (in == null) {
+                    return new InstallResult().installError("No se puede leer el fichero seleccionado");
+                }
+                FileUtils.copyFile(in, dest);
+            }
+            if (uris.size() == 1) {
+                File only = new File(stagingDir, "in-000");
+                if (top.niunaijun.blackbox.core.system.pm.split.BundleDetector.detect(only)
+                        == top.niunaijun.blackbox.core.system.pm.split.BundleDetector.Kind.APK) {
+                    // APK suelto: ruta clásica (el staging se borra en el finally).
+                    return installPackageAsUser(only, userId);
+                }
+            }
+            handedOver = true; // el servicio borra el staging al terminar
+            return getBPackageManager().installPackageAsUser(stagingDir.getAbsolutePath(),
+                    InstallOption.installByStorage().makeSplitSet(), userId);
+        } catch (Exception e) {
+            Slog.w(TAG, "installPackageAsUser(List<Uri>) failed: " + e);
+            return new InstallResult().installError(String.valueOf(e.getMessage()));
+        } finally {
+            if (!handedOver) FileUtils.deleteDir(stagingDir);
+        }
     }
 
 
