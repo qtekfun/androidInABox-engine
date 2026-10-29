@@ -219,7 +219,13 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
         boolean registered = false;
         for (top.niunaijun.blackbox.core.system.user.BUserInfo user
                 : top.niunaijun.blackbox.core.system.user.BUserManagerService.get().getUsers()) {
-            List<ResolveInfo> resolves = BPackageManagerService.get().queryBroadcastReceivers(intent, GET_META_DATA, null, user.id);
+            List<ResolveInfo> resolves;
+            try {
+                resolves = BPackageManagerService.get().queryBroadcastReceivers(intent, GET_META_DATA, null, user.id);
+            } catch (Throwable t) {
+                Slog.w(TAG, "queryBroadcastReceivers fallo en el perfil " + user.id, t);
+                continue;
+            }
             for (ResolveInfo resolve : resolves) {
                 try {
                     ProcessRecord processRecord = BProcessManagerService.get().startProcessLocked(
