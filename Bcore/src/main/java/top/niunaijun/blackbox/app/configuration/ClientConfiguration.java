@@ -35,8 +35,4 @@ public abstract class ClientConfiguration {
         return false;
     }
 
-    
-    public String getLogSenderChatId() {
-        return "-1003719573856";
-    }
 }

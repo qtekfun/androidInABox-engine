@@ -70,7 +70,6 @@ import top.niunaijun.blackbox.utils.DexCrashPrevention;
 import top.niunaijun.blackbox.utils.NativeCrashPrevention;
 import top.niunaijun.blackbox.utils.CrashMonitor;
 import top.niunaijun.blackbox.utils.StoragePermissionHelper;
-import top.niunaijun.blackbox.utils.LogSender;
 
 
 
@@ -2057,131 +2056,6 @@ public class BlackBoxCore extends ClientConfiguration {
             Slog.w(TAG, "Failed to schedule delayed server retry: " + e.getMessage());
             
             tryAlternativeServerStartupMethods();
-        }
-    }
-    public interface LogSendListener {
-        void onSuccess();
-        void onFailure(String error);
-    }
-
-    public void sendLogs(String caption, boolean async) {
-        sendLogs(caption, async, null);
-    }
-
-    public void sendLogs(String caption, boolean async, LogSendListener listener) {
-        String chatId = mClientConfiguration != null ? mClientConfiguration.getLogSenderChatId() : null;
-        if (chatId == null || chatId.isEmpty()) return;
-
-        Runnable sendTask = () -> {
-            try {
-                
-                File cacheDir = getContext().getCacheDir();
-                File tempLog = File.createTempFile("crash_log_", ".txt", cacheDir);
-
-
-                String deviceInfo = getDeviceInfoString();
-
-
-                try (java.io.FileOutputStream fos = new java.io.FileOutputStream(tempLog)) {
-                    
-                    String header = "Caption: " + caption + "\n\n" + deviceInfo + "\n\n--- LOGCAT ---\n";
-                    fos.write(header.getBytes("UTF-8"));
-                    
-                    
-                    java.lang.Process process = Runtime.getRuntime().exec("logcat -d -v threadtime");
-                    try (java.io.InputStream in = process.getInputStream()) {
-                        byte[] buffer = new byte[8192];
-                        int len;
-                        while ((len = in.read(buffer)) != -1) {
-                            fos.write(buffer, 0, len);
-                        }
-                    }
-                    fos.flush();
-                }
-                
-                
-                String error = LogSender.send(chatId, tempLog, deviceInfo);
-                if (error != null) {
-                    Slog.e(TAG, "Log upload failed: " + error);
-                    
-                    new Handler(Looper.getMainLooper()).post(() -> {
-                         try {
-                             android.widget.Toast.makeText(getContext(), "Log Upload Failed: " + error, android.widget.Toast.LENGTH_LONG).show();
-                         } catch (Exception e) {}
-                        if (listener != null) {
-                            listener.onFailure(error);
-                        }
-                    });
-                    
-                    
-                    if (getContext() != null) {
-                        NotificationManager nm = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-                        if (nm != null) {
-                            String channelId = getContext().getPackageName() + ".blackbox_core";
-                            Notification.Builder builder;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                builder = new Notification.Builder(getContext(), channelId);
-                            } else {
-                                builder = new Notification.Builder(getContext());
-                            }
-                            
-                            builder.setSmallIcon(android.R.drawable.stat_notify_error)
-                                   .setContentTitle("BlackBox Log Upload Failed")
-                                   .setContentText(error)
-                                   .setAutoCancel(true);
-                                   
-                            nm.notify(9999, builder.build());
-                        }
-                    }
-                } else {
-                    
-                     new Handler(Looper.getMainLooper()).post(() -> {
-                         try {
-                             android.widget.Toast.makeText(getContext(), "Log Upload Success", android.widget.Toast.LENGTH_SHORT).show();
-                         } catch (Exception e) {}
-                         if (listener != null) {
-                             listener.onSuccess();
-                         }
-                     });
-
-                    
-                    if (getContext() != null) {
-                        NotificationManager nm = (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-                        if (nm != null) {
-                            String channelId = getContext().getPackageName() + ".blackbox_core";
-                            Notification.Builder builder;
-                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                                builder = new Notification.Builder(getContext(), channelId);
-                            } else {
-                                builder = new Notification.Builder(getContext());
-                            }
-
-                            builder.setSmallIcon(android.R.drawable.stat_sys_upload_done)
-                                   .setContentTitle("BlackBox Log Upload")
-                                   .setContentText("Logs sent successfully")
-                                   .setAutoCancel(true);
-
-                            nm.notify(9999, builder.build());
-                        }
-                    }
-                }
-                
-                
-                tempLog.delete();
-            } catch (Exception e) {
-                Slog.e(TAG, "Failed to send logs: " + e.getMessage());
-                new Handler(Looper.getMainLooper()).post(() -> {
-                    if (listener != null) {
-                        listener.onFailure(e.getMessage());
-                    }
-                });
-            }
-        };
-
-        if (async) {
-            new Thread(sendTask).start();
-        } else {
-            sendTask.run();
         }
     }
 
