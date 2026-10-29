@@ -21,6 +21,7 @@ import top.niunaijun.blackbox.fake.hook.IInjectHook;
 import top.niunaijun.blackbox.fake.service.HCallbackProxy;
 import top.niunaijun.blackbox.fake.service.IActivityClientProxy;
 import top.niunaijun.blackbox.utils.HackAppUtils;
+import top.niunaijun.blackbox.utils.compat.ActivityAliasCompat;
 import top.niunaijun.blackbox.utils.compat.ActivityCompat;
 import top.niunaijun.blackbox.utils.compat.ActivityManagerCompat;
 import top.niunaijun.blackbox.utils.compat.ContextCompat;
@@ -144,6 +145,15 @@ public final class AppInstrumentation extends BaseInstrumentationDelegate implem
         try {
             return super.newActivity(cl, className, intent);
         } catch (ClassNotFoundException e) {
+            String target = null;
+            if (intent != null && intent.getComponent() != null) {
+                target = ActivityAliasCompat.lookupTarget(intent.getComponent().getPackageName(), className);
+            }
+            String real = ActivityAliasCompat.effectiveClassName(className, target);
+            if (!real.equals(className)) {
+                Log.d(TAG, "newActivity: alias " + className + " -> " + real);
+                return super.newActivity(cl, real, intent);
+            }
             return mBaseInstrumentation.newActivity(cl, className, intent);
         }
     }

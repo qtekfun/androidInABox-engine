@@ -29,6 +29,7 @@ import black.android.app.servertransaction.BRLaunchActivityItem;
 import black.android.app.servertransaction.LaunchActivityItemContext;
 import black.android.os.BRHandler;
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.utils.compat.ActivityAliasCompat;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.fake.hook.IInjectHook;
 import top.niunaijun.blackbox.proxy.ProxyManifest;
@@ -133,6 +134,7 @@ public class HCallbackProxy implements IInjectHook, Handler.Callback {
         ProxyActivityRecord stubRecord = ProxyActivityRecord.create(intent);
         ActivityInfo activityInfo = stubRecord.mActivityInfo;
         if (activityInfo != null) {
+            ActivityAliasCompat.ensureTarget(activityInfo);
             if (BActivityThread.getAppConfig() == null) {
                 BlackBoxCore.getBActivityManager().restartProcess(activityInfo.packageName, activityInfo.processName, stubRecord.mUserId);
 
