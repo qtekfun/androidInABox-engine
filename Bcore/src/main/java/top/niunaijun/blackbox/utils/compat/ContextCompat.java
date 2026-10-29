@@ -30,6 +30,43 @@ public class ContextCompat {
         }
     }
 
+    /**
+     * Algunos firmwares (p. ej. ColorOS/OxygenOS) filtran en ContentResolver.query las consultas a providers
+     * de GMS cuando el paquete llamante no es de Google: como el invitado se presenta con el paquete del
+     * host, esas consultas devuelven null sin llegar al proveedor (los ajustes de microG fallan con
+     * "Cursor ... was null"). Se envuelve la extension del firmware: los hook* (insert/query/delete/batch)
+     * devuelven true (operacion permitida) y el resto el valor por defecto.
+     */
+    public static void neutralizarFiltroGmsDelResolver(android.content.ContentResolver resolver) {
+        try {
+            if (resolver == null) return;
+            java.lang.reflect.Field campo = android.content.ContentResolver.class.getDeclaredField("mContentResolverExt");
+            campo.setAccessible(true);
+            Object original = campo.get(resolver);
+            if (original == null || java.lang.reflect.Proxy.isProxyClass(original.getClass())) return;
+            Class<?> tipo = campo.getType();
+            if (!tipo.isInterface()) return;
+            Object envoltorio = java.lang.reflect.Proxy.newProxyInstance(tipo.getClassLoader(), new Class<?>[]{tipo},
+                    (proxy, method, args) -> {
+                        Class<?> ret = method.getReturnType();
+                        if (ret == boolean.class) return method.getName().startsWith("hook");
+                        if (ret == int.class) return 0;
+                        if (ret == long.class) return 0L;
+                        if (ret == float.class) return 0f;
+                        if (ret == double.class) return 0d;
+                        if (ret == short.class) return (short) 0;
+                        if (ret == byte.class) return (byte) 0;
+                        if (ret == char.class) return (char) 0;
+                        return null;
+                    });
+            campo.set(resolver, envoltorio);
+        } catch (NoSuchFieldException ignored) {
+            // firmware sin esa extension
+        } catch (Throwable e) {
+            Slog.w(TAG, "No se pudo neutralizar el filtro GMS del ContentResolver: " + e);
+        }
+    }
+
     public static void fix(Context context) {
         try {
             
@@ -68,6 +105,7 @@ public class ContextCompat {
             } catch (Exception e) {
                 Slog.w(TAG, "Failed to fix content resolver: " + e.getMessage());
             }
+            neutralizarFiltroGmsDelResolver(context.getContentResolver());
 
             if (BuildCompat.isS()) {
                 try {
