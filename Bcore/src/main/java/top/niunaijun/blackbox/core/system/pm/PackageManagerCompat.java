@@ -18,6 +18,7 @@ import android.content.res.Resources;
 import android.os.Build;
 
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 import black.android.content.pm.BRApplicationInfoL;
@@ -65,6 +66,9 @@ public class PackageManagerCompat {
         pi.sharedUserId = p.mSharedUserId;
         pi.sharedUserLabel = p.mSharedUserLabel;
         pi.applicationInfo = generateApplicationInfo(p, flags, state, userId);
+        if (pi.applicationInfo != null && pi.applicationInfo.splitNames != null) {
+            pi.splitNames = pi.applicationInfo.splitNames.clone();
+        }
 
         pi.firstInstallTime = firstInstallTime;
         pi.lastUpdateTime = lastUpdateTime;
@@ -304,6 +308,8 @@ public class PackageManagerCompat {
         ai.processName = BPackageManagerService.fixProcessName(p.packageName, ai.packageName);
         ai.publicSourceDir = sourceDir;
         ai.sourceDir = sourceDir;
+        // Clones del host (FLAG_SYSTEM): se conservan los splits heredados de p.applicationInfo
+        applySplits(ai, p.splitNames, p.splitCodePaths);
         ai.uid = p.mExtras.appId;
 
 
@@ -330,6 +336,20 @@ public class PackageManagerCompat {
         }
         fixJar(ai);
         return ai;
+    }
+
+    /**
+     * Rellena {@code splitNames}, {@code splitSourceDirs} y {@code splitPublicSourceDirs} (mismo
+     * orden y longitud). Si no hay splits instalados no toca lo que ya tenga {@code ai}.
+     */
+    static void applySplits(ApplicationInfo ai, List<String> names, List<String> paths) {
+        if (names == null || paths == null || names.isEmpty() || names.size() != paths.size()) {
+            return;
+        }
+        String[] dirs = paths.toArray(new String[0]);
+        ai.splitSourceDirs = dirs;
+        ai.splitPublicSourceDirs = dirs.clone();
+        ai.splitNames = names.toArray(new String[0]);
     }
 
     private static boolean checkUseInstalledOrHidden(int flags, BPackageUserState state,
@@ -369,6 +389,15 @@ public class PackageManagerCompat {
         if (ps != null) {
             AssetManager assets = BRAssetManager.get()._new();
             BRAssetManager.get(assets).addAssetPath(ps.pkg.baseCodePath);
+            if (ps.pkg.splitCodePaths != null) {
+                for (String split : ps.pkg.splitCodePaths) {
+                    BRAssetManager.get(assets).addAssetPath(split);
+                }
+            } else if (appInfo.splitSourceDirs != null) {
+                for (String split : appInfo.splitSourceDirs) {
+                    BRAssetManager.get(assets).addAssetPath(split);
+                }
+            }
             Resources hostRes = context.getResources();
             return new Resources(assets, hostRes.getDisplayMetrics(), hostRes.getConfiguration());
         }

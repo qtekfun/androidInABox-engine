@@ -678,7 +678,7 @@ public class BPackageManager extends BlackManager<IBPackageManagerService> {
         info.dataDir = "/data/data/" + packageName;
         info.nativeLibraryDir = "/data/app-lib/" + packageName;
         info.metaData = new Bundle();
-        info.splitNames = new String[]{};
+        info.splitNames = null; // sin splits conocidos en la ruta de respaldo
         
         
         info.flags |= ApplicationInfo.FLAG_ALLOW_BACKUP;
@@ -827,7 +827,7 @@ public class BPackageManager extends BlackManager<IBPackageManagerService> {
         info.lastUpdateTime = System.currentTimeMillis(); 
         info.installLocation = 0; 
         info.gids = new int[]{}; 
-        info.splitNames = new String[]{}; 
+        info.splitNames = null; // sin splits conocidos en la ruta de respaldo 
         info.signatures = new Signature[]{}; 
         return info;
     }
