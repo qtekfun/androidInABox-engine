@@ -3,16 +3,20 @@ package top.niunaijun.blackbox.fake.service;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
+import android.app.NotificationManager;
 import android.content.Context;
 import android.os.Build;
 
 import androidx.annotation.RequiresApi;
 
+import java.lang.reflect.Array;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.List;
 
 import black.android.app.BRNotificationManager;
 import black.android.content.pm.BRParceledListSlice;
+import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.fake.frameworks.BNotificationManager;
 import top.niunaijun.blackbox.fake.frameworks.notification.NotificationPresenter;
@@ -97,6 +101,70 @@ public class INotificationManagerProxy extends BinderInvocationStub {
         }
     }
 
+
+    /**
+     * Sin este hook {@code replaceAllAppPkg} cambiaria el paquete por el del host y el invitado
+     * cancelaria todas las notificaciones del host, incluida la del servicio del motor.
+     */
+    @ProxyMethod("cancelAllNotifications")
+    public static class CancelAllNotifications extends MethodHook {
+
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            BNotificationManager.get().cancelAllNotifications();
+            return 0;
+        }
+    }
+
+    /** El invitado ve el estado real del host (permiso POST_NOTIFICATIONS y ajuste de la app). */
+    @ProxyMethod("areNotificationsEnabled")
+    public static class AreNotificationsEnabled extends MethodHook {
+
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return hostNotificationsEnabled();
+        }
+    }
+
+    @ProxyMethod("areNotificationsEnabledForPackage")
+    public static class AreNotificationsEnabledForPackage extends AreNotificationsEnabled {
+    }
+
+    /** El invitado no puede cambiar el ajuste de notificaciones del host. */
+    @ProxyMethod("setNotificationsEnabledForPackage")
+    public static class SetNotificationsEnabledForPackage extends MethodHook {
+
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return 0;
+        }
+    }
+
+    /** Fuera de alcance: el invitado no lista notificaciones (evita que vea las del host). */
+    @ProxyMethod("getActiveNotifications")
+    public static class GetActiveNotifications extends MethodHook {
+
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Class<?> type = method.getReturnType();
+            if (type.isArray()) {
+                return Array.newInstance(type.getComponentType(), 0);
+            }
+            return ParceledListSliceCompat.create(new ArrayList<>());
+        }
+    }
+
+    @ProxyMethod("getAppActiveNotifications")
+    public static class GetAppActiveNotifications extends GetActiveNotifications {
+    }
+
+    private static boolean hostNotificationsEnabled() {
+        if (!BuildCompat.isN()) {
+            return true;
+        }
+        NotificationManager nm = (NotificationManager) BlackBoxCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
+        return nm.areNotificationsEnabled();
+    }
 
     @ProxyMethod("enqueueNotificationWithTag")
     public static class EnqueueNotificationWithTag extends MethodHook {

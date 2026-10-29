@@ -91,6 +91,14 @@ public class BNotificationManager extends BlackManager<IBNotificationManagerServ
         }
     }
 
+    public void cancelAllNotifications() {
+        try {
+            getService().cancelAllNotifications(BActivityThread.getUserId());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
     public List<NotificationChannel> getNotificationChannels(String packageName) {
         try {
             return getService().getNotificationChannels(packageName, BActivityThread.getUserId());

@@ -220,6 +220,14 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         mRealNotificationManager.cancel(NotificationIds.scoped(userId, processByPid.getPackageName(), tag), id);
     }
 
+    @Override
+    public void cancelAllNotifications(int userId) throws RemoteException {
+        ProcessRecord processByPid = BProcessManagerService.get().findProcessByPid(Binder.getCallingPid());
+        if (processByPid == null)
+            return;
+        cancelAllOf(processByPid.getPackageName(), userId);
+    }
+
     /** Cancela todo lo publicado por (paquete, perfil), sin tocar lo del host ni lo de otras apps. */
     private void cancelAllOf(String packageName, int userId) {
         try {

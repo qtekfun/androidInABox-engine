@@ -25,4 +25,6 @@ interface IBNotificationManagerService {
     void enqueueNotificationWithTag(int id, String tag, in Notification notification, int userId);
 
     void cancelNotificationWithTag(int id, String tag, int userId);
+
+    void cancelAllNotifications(int userId);
 }
