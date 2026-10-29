@@ -211,7 +211,10 @@ public class BActivityThread extends IBActivityThread.Stub {
         ClassLoader classLoader = BRLoadedApk.get(mBoundApplication.info).getClassLoader();
         Service service;
         try {
-            service = (Service) classLoader.loadClass(serviceInfo.name).newInstance();
+            android.app.AppComponentFactory factory = guestFactory();
+            service = factory != null
+                    ? factory.instantiateService(classLoader, serviceInfo.name, null)
+                    : (Service) classLoader.loadClass(serviceInfo.name).newInstance();
         } catch (ClassNotFoundException e) {
             
             if (serviceInfo.name.contains("google.android.gms") || 
@@ -267,7 +270,10 @@ public class BActivityThread extends IBActivityThread.Stub {
         ClassLoader classLoader = BRLoadedApk.get(mBoundApplication.info).getClassLoader();
         JobService service;
         try {
-            service = (JobService) classLoader.loadClass(serviceInfo.name).newInstance();
+            android.app.AppComponentFactory factory = guestFactory();
+            service = (JobService) (factory != null
+                    ? factory.instantiateService(classLoader, serviceInfo.name, null)
+                    : classLoader.loadClass(serviceInfo.name).newInstance());
         } catch (ClassNotFoundException e) {
             
             if (serviceInfo.name.contains("google.android.gms") || 
@@ -382,6 +388,7 @@ public class BActivityThread extends IBActivityThread.Stub {
         
         BRLoadedApk.get(loadedApk)._set_mApplicationInfo(applicationInfo);
         syncLoadedApkSplits(loadedApk, applicationInfo);
+        installGuestAppComponentFactory(loadedApk, applicationInfo);
 
         int targetSdkVersion = applicationInfo.targetSdkVersion;
         if (targetSdkVersion < Build.VERSION_CODES.GINGERBREAD) {
@@ -528,6 +535,13 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
     
     
+    private Application instantiateGuestApplication(ClassLoader classLoader, Class<?> appClass) throws Exception {
+        android.app.AppComponentFactory factory = guestFactory();
+        return factory != null
+                ? factory.instantiateApplication(classLoader, appClass.getName())
+                : (Application) appClass.newInstance();
+    }
+
     private Application createApplicationWithFallback(android.content.pm.ApplicationInfo appInfo) {
         try {
             
@@ -550,7 +564,7 @@ public class BActivityThread extends IBActivityThread.Stub {
             }
             
             Class<?> appClass = classLoader.loadClass(appInfo.className);
-            Application application = (Application) appClass.newInstance();
+            Application application = instantiateGuestApplication(classLoader, appClass);
             
             
             ensureApplicationBaseContext(application, appInfo);
@@ -689,7 +703,7 @@ public class BActivityThread extends IBActivityThread.Stub {
             
             ClassLoader classLoader = getClassLoader(appInfo);
             Class<?> appClass = classLoader.loadClass(appInfo.className);
-            Application application = (Application) appClass.newInstance();
+            Application application = instantiateGuestApplication(classLoader, appClass);
             
             
             ensureApplicationBaseContext(application, appInfo);
@@ -859,8 +873,10 @@ public class BActivityThread extends IBActivityThread.Stub {
                 classLoader = ClassLoader.getSystemClassLoader();
             }
 
-            android.content.ContentProvider provider = (android.content.ContentProvider) classLoader
-                .loadClass(providerInfo.name).newInstance();
+            android.app.AppComponentFactory factory = guestFactory();
+            android.content.ContentProvider provider = factory != null
+                ? factory.instantiateProvider(classLoader, providerInfo.name)
+                : (android.content.ContentProvider) classLoader.loadClass(providerInfo.name).newInstance();
 
             provider.attachInfo(application, providerInfo);
 
@@ -981,6 +997,47 @@ public class BActivityThread extends IBActivityThread.Stub {
         }
     }
 
+    /**
+     * Equivalente a LoadedApk.createAppFactory de AOSP: el LoadedApk se construye con el
+     * ApplicationInfo del host, asi que mAppComponentFactory no es la fabrica declarada por el
+     * invitado. Se instancia la del manifiesto con el classloader invitado (solo API >= 28).
+     */
+    private static void installGuestAppComponentFactory(Object loadedApk, ApplicationInfo ai) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || loadedApk == null || ai == null) return;
+        try {
+            String name = ai.appComponentFactory;
+            if (name == null || name.isEmpty()) return;
+            Object current = BRLoadedApk.get(loadedApk).mAppComponentFactory();
+            if (current != null && current.getClass().getName().equals(name)) return;
+            ClassLoader cl = BRLoadedApk.get(loadedApk).getClassLoader();
+            Object factory;
+            try {
+                factory = cl.loadClass(name).newInstance();
+            } catch (Throwable t) {
+                Slog.w(TAG, "AppComponentFactory del invitado no instanciable (" + name + "), se usa DEFAULT: " + t);
+                factory = new android.app.AppComponentFactory();
+            }
+            BRLoadedApk.get(loadedApk)._set_mAppComponentFactory(factory);
+            Slog.d(TAG, "AppComponentFactory del invitado: " + factory.getClass().getName());
+        } catch (Throwable t) {
+            Slog.w(TAG, "No se pudo fijar mAppComponentFactory: " + t);
+        }
+    }
+
+    /** Fabrica de componentes del invitado, o null si no hay una distinta de la predeterminada (API < 28 incluida). */
+    private android.app.AppComponentFactory guestFactory() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null;
+        try {
+            if (mBoundApplication == null || mBoundApplication.info == null) return null;
+            Object f = BRLoadedApk.get(mBoundApplication.info).mAppComponentFactory();
+            if (f instanceof android.app.AppComponentFactory && f.getClass() != android.app.AppComponentFactory.class) {
+                return (android.app.AppComponentFactory) f;
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
+    }
+
     /** Un contexto de paquete invitado debe resolver getApplicationContext() a la Application invitada. */
     private static void fixPackageContextApplication(Context context) {
         try {
@@ -993,6 +1050,9 @@ public class BActivityThread extends IBActivityThread.Stub {
             if (base == null) return;
             Object info = BRContextImpl.get(base).mPackageInfo();
             if (info == null) return;
+            if (context.getPackageName().equals(guestApp.getPackageName())) {
+                installGuestAppComponentFactory(info, guestApp.getApplicationInfo());
+            }
             if (BRLoadedApk.get(info).mApplication() == null
                     && context.getPackageName().equals(guestApp.getPackageName())) {
                 BRLoadedApk.get(info)._set_mApplication(guestApp);
@@ -1254,7 +1314,10 @@ public class BActivityThread extends IBActivityThread.Stub {
                 }
                 intent.setExtrasClassLoader(classLoader);
 
-                mReceiver = (BroadcastReceiver) classLoader.loadClass(activityInfo.name).newInstance();
+                android.app.AppComponentFactory factory = guestFactory();
+                mReceiver = factory != null
+                        ? factory.instantiateReceiver(classLoader, activityInfo.name, intent)
+                        : (BroadcastReceiver) classLoader.loadClass(activityInfo.name).newInstance();
                 BRBroadcastReceiver.get(mReceiver).setPendingResult(pendingResult);
                 mReceiver.onReceive(baseContext, intent);
                 BroadcastReceiver.PendingResult finish = BRBroadcastReceiver.get(mReceiver).getPendingResult();
