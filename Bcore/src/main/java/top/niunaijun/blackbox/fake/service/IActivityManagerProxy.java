@@ -530,6 +530,9 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                             args[i] = null;
                         }
                     }
+                    // El stub es un receiver: el sistema debe enviarlo como broadcast aunque el invitado pidiera un servicio.
+                    // El tipo original queda en el registro (kind) y el box arranca el servicio al recibirlo.
+                    args[0] = ActivityManagerCompat.INTENT_SENDER_BROADCAST;
                 }
             }
             IInterface invoke = (IInterface) method.invoke(who, args);
