@@ -428,6 +428,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             }
             
             
+            if (isPostNotifications(permission)) {
+                return hostPostNotificationsState();
+            }
+
             if (isNotificationOrXiaomiPermission(permission)) {
                 Slog.d(TAG, "SimpleAudioPermissionHook: Granting notification/Xiaomi permission: " + permission + " to " + packageName);
                 return PackageManager.PERMISSION_GRANTED;
@@ -458,6 +462,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             }
             
             
+            if (isPostNotifications(permission)) {
+                return hostPostNotificationsState();
+            }
+
             if (isNotificationOrXiaomiPermission(permission)) {
                 Slog.d(TAG, "CheckSelfPermission: Granting notification/Xiaomi permission: " + permission + " to " + packageName);
                 return PackageManager.PERMISSION_GRANTED;
@@ -572,6 +580,18 @@ public class IPackageManagerProxy extends BinderInvocationStub {
     }
     
     
+    private static boolean isPostNotifications(String permission) {
+        return "android.permission.POST_NOTIFICATIONS".equals(permission);
+    }
+
+    /** El invitado publica como el host, asi que ve el estado real del permiso del host (R02.22). */
+    private static int hostPostNotificationsState() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+            return PackageManager.PERMISSION_GRANTED;
+        }
+        return BlackBoxCore.getContext().checkSelfPermission("android.permission.POST_NOTIFICATIONS");
+    }
+
     private static boolean isNotificationOrXiaomiPermission(String permission) {
         if (permission == null) return false;
         
