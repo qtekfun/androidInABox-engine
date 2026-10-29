@@ -714,7 +714,15 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 Slog.w(TAG, "Installing potentially BlackBox-related app: " + packageName + ". Proceed with caution.");
             }
 
-            boolean support = AbiUtils.isSupport(apkFile);
+            boolean support;
+            if (selectedSplits != null) {
+                List<File> abiFiles = new ArrayList<>();
+                abiFiles.add(apkFile);
+                for (SplitInfo split : selectedSplits) abiFiles.add(split.file);
+                support = AbiUtils.isSupport(abiFiles);
+            } else {
+                support = AbiUtils.isSupport(apkFile);
+            }
             if (!support) {
                 String msg = packageArchiveInfo.applicationInfo.loadLabel(BlackBoxCore.getPackageManager()) + "[" + packageArchiveInfo.packageName + "]";
                 return result.installError(packageArchiveInfo.packageName,

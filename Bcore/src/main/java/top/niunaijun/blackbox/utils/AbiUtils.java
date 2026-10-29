@@ -1,9 +1,11 @@
 package top.niunaijun.blackbox.utils;
 
 import java.io.File;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.zip.ZipEntry;
@@ -33,7 +35,23 @@ public class AbiUtils {
         }
     }
 
+    /** Soporte según las libs del conjunto base + splits de configuración de ABI. */
+    public static boolean isSupport(List<File> apkFiles) {
+        AbiUtils abiUtils = new AbiUtils(apkFiles);
+        return abiUtils.isEmptyAib() || abiUtils.matches(BlackBoxCore.is64Bit());
+    }
+
     public AbiUtils(File apkFile) {
+        this(Collections.singletonList(apkFile));
+    }
+
+    public AbiUtils(List<File> apkFiles) {
+        for (File apkFile : apkFiles) {
+            scan(apkFile);
+        }
+    }
+
+    private void scan(File apkFile) {
         ZipFile zipFile = null;
         try {
             zipFile = new ZipFile(apkFile);
@@ -54,6 +72,10 @@ public class AbiUtils {
         } finally {
             CloseUtils.close(zipFile);
         }
+    }
+
+    public boolean matches(boolean box64Bit) {
+        return box64Bit ? is64Bit() : is32Bit();
     }
 
     public boolean is64Bit() {

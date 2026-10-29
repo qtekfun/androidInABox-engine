@@ -10,7 +10,10 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
@@ -20,19 +23,58 @@ public class NativeUtils {
     public static final String TAG = "VirtualM";
 
     public static void copyNativeLib(File apk, File nativeLibDir) throws Exception {
+        copyNativeLib(Collections.singletonList(apk), nativeLibDir);
+    }
+
+    /** Copia las libs de la ABI del box desde el base y los splits de configuración. */
+    public static void copyNativeLib(List<File> apks, File nativeLibDir) throws Exception {
+        copyNativeLib(apks, nativeLibDir, Arrays.asList(Build.CPU_ABI, "armeabi"));
+    }
+
+    /**
+     * @param abis ABI por orden de preferencia; se usa la primera que tenga libs en algún APK
+     */
+    public static void copyNativeLib(List<File> apks, File nativeLibDir, List<String> abis) throws Exception {
         long startTime = System.currentTimeMillis();
         if (!nativeLibDir.exists()) {
             nativeLibDir.mkdirs();
         }
-        try (ZipFile zipfile = new ZipFile(apk.getAbsolutePath())) {
-            if (findAndCopyNativeLib(zipfile, Build.CPU_ABI, nativeLibDir)) {
+        try {
+            String chosen = null;
+            for (String abi : abis) {
+                for (File apk : apks) {
+                    if (hasLibs(apk, abi)) {
+                        chosen = abi;
+                        break;
+                    }
+                }
+                if (chosen != null) break;
+            }
+            if (chosen == null) {
                 return;
             }
-
-            findAndCopyNativeLib(zipfile, "armeabi", nativeLibDir);
+            for (File apk : apks) {
+                try (ZipFile zipfile = new ZipFile(apk.getAbsolutePath())) {
+                    findAndCopyNativeLib(zipfile, chosen, nativeLibDir);
+                }
+            }
         } finally {
             Log.d(TAG, "Done! +" + (System.currentTimeMillis() - startTime) + "ms");
         }
+    }
+
+    private static boolean hasLibs(File apk, String abi) throws IOException {
+        String prefix = "lib/" + abi + "/";
+        try (ZipFile zipfile = new ZipFile(apk.getAbsolutePath())) {
+            Enumeration<? extends ZipEntry> e = zipfile.entries();
+            while (e.hasMoreElements()) {
+                String name = e.nextElement().getName();
+                if (name.startsWith(prefix) && name.endsWith(".so")) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
 
