@@ -77,4 +77,17 @@ public class IDevicePolicyManagerProxy extends BinderInvocationStub {
             return true;
         }
     }
+
+    /** En el box no hay administración de dispositivo: ningún tipo de cuenta está restringido. */
+    @ProxyMethod("getAccountTypesWithManagementDisabledAsUser")
+    public static class GetAccountTypesWithManagementDisabledAsUser extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return new String[0];
+        }
+    }
+
+    @ProxyMethod("getAccountTypesWithManagementDisabled")
+    public static class GetAccountTypesWithManagementDisabled extends GetAccountTypesWithManagementDisabledAsUser {
+    }
 }

@@ -379,6 +379,12 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
 
     public synchronized void handleBindApplication(String packageName, String processName) {
+        try {
+            // Binder.getCallingUid es @CriticalNative: el UID del llamante se virtualiza en libbinder
+            NativeCore.setCallingUidMapping(BlackBoxCore.getHostUid(), NativeCore.findBoxServerPid(), getBUid());
+        } catch (Throwable e) {
+            Slog.w(TAG, "No se pudo instalar el mapeo de getCallingUid: " + e);
+        }
         // Las apps invitadas deben fallar como en Android: registrar la excepción y terminar el proceso.
         // Los manejadores del motor que se tragan excepciones dejan el proceso en mal estado
         // (p. ej. Cronet aborta con "the Java uncaught exception handler did not terminate the process").
@@ -473,8 +479,8 @@ public class BActivityThread extends IBActivityThread.Stub {
         Application application;
         try {
             onBeforeCreateApplication(packageName, processName, packageContext);
-            
-            
+            addSharedLibraryJars(loadedApk, applicationInfo);
+
             try {
                 application = BRLoadedApk.get(loadedApk).makeApplication(false, null);
             } catch (Exception makeAppException) {
@@ -964,6 +970,33 @@ public class BActivityThread extends IBActivityThread.Stub {
                 System.exit(10);
             }
         });
+    }
+
+    /**
+     * Desde Android 12 LoadedApk solo toma de sharedLibraryFiles los ficheros .apk; las bibliotecas .jar
+     * (p. ej. org.apache.http.legacy, que usa GMS) llegan por sharedLibraryInfos, que el motor no construye.
+     * Se añaden al classloader del invitado con BaseDexClassLoader.addDexPath.
+     */
+    private static void addSharedLibraryJars(Object loadedApk, android.content.pm.ApplicationInfo info) {
+        if (info == null || info.sharedLibraryFiles == null) {
+            return;
+        }
+        try {
+            ClassLoader cl = BRLoadedApk.get(loadedApk).getClassLoader();
+            if (!(cl instanceof dalvik.system.BaseDexClassLoader)) {
+                return;
+            }
+            java.lang.reflect.Method addDexPath = dalvik.system.BaseDexClassLoader.class.getDeclaredMethod("addDexPath", String.class);
+            addDexPath.setAccessible(true);
+            for (String lib : info.sharedLibraryFiles) {
+                if (lib != null && lib.endsWith(".jar") && new java.io.File(lib).exists()) {
+                    addDexPath.invoke(cl, lib);
+                    Slog.d(TAG, "Biblioteca compartida añadida al classloader: " + lib);
+                }
+            }
+        } catch (Throwable e) {
+            Slog.w(TAG, "No se pudieron añadir las bibliotecas compartidas: " + e);
+        }
     }
 
     private static boolean isAntiDetectProvider(String className) {

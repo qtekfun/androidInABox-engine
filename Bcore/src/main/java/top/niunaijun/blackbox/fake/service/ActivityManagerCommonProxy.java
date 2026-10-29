@@ -210,6 +210,27 @@ public class ActivityManagerCommonProxy {
         }
     }
 
+    /** Igual que getCallingPackage: el sistema real diría el host y apps como GMS cierran la actividad. */
+    @ProxyMethod("getLaunchedFromPackage")
+    public static class GetLaunchedFromPackage extends getCallingPackage {
+    }
+
+    @ProxyMethod("getLaunchedFromUid")
+    public static class GetLaunchedFromUid extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String pkg = BlackBoxCore.getBActivityManager().getCallingPackage((IBinder) args[0], BActivityThread.getUserId());
+            if (pkg != null) {
+                android.content.pm.ApplicationInfo info = top.niunaijun.blackbox.fake.frameworks.BPackageManager.get()
+                        .getApplicationInfo(pkg, 0, BActivityThread.getUserId());
+                if (info != null) {
+                    return info.uid;
+                }
+            }
+            return method.invoke(who, args);
+        }
+    }
+
     @ProxyMethod("getCallingActivity")
     public static class getCallingActivity extends MethodHook {
         @Override

@@ -40,7 +40,13 @@ public class ProxyPendingRecord {
         shadow.putExtra(KEY_USER, userId);
         shadow.putExtra(KEY_PACKAGE, packageName);
         shadow.putExtra(KEY_KIND, kind);
-        shadow.putExtra(KEY_BYTES, marshal(target));
+        try {
+            shadow.putExtra(KEY_BYTES, marshal(target));
+        } catch (RuntimeException e) {
+            // Parcel.marshall() no admite binders ni descriptores (p. ej. la respuesta del autenticador
+            // que GMS pone en el intent): se guarda como Parcelable, el formato anterior que create() lee.
+            shadow.putExtra(KEY_LEGACY_TARGET, target);
+        }
         shadow.putExtra(KEY_ROUTING, target.cloneFilter());
     }
 

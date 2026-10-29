@@ -854,6 +854,20 @@ public class IActivityManagerProxy extends ClassInvocationStub {
         }
     }
 
+    /** Android 15+: ContextImpl.checkPermission llega por PermissionManager a esta variante con deviceId. */
+    @ProxyMethod("checkPermissionForDevice")
+    public static class CheckPermissionForDevice extends checkPermission {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            // (permission, pid, uid, deviceId): el uid es el tercero, no el último
+            if (args != null && args.length >= 3 && args[2] instanceof Integer
+                    && (int) args[2] == BlackBoxCore.getBUid()) {
+                args[2] = BlackBoxCore.getHostUid();
+            }
+            return super.hook(who, method, args);
+        }
+    }
+
     @ProxyMethod("checkPermission")
     public static class checkPermission extends MethodHook {
         @Override

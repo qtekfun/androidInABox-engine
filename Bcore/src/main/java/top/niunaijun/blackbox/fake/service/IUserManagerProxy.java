@@ -60,4 +60,25 @@ public class IUserManagerProxy extends BinderInvocationStub {
             return new ArrayList<>();
         }
     }
+
+
+    @ProxyMethod("getApplicationRestrictionsForUser")
+    public static class GetApplicationRestrictionsForUser extends GetApplicationRestrictions {
+    }
+
+    /** El sistema real exige MANAGE_USERS/QUERY_USERS; en el box cada perfil es un usuario principal. */
+    @ProxyMethod("getUserInfo")
+    public static class GetUserInfo extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            try {
+                return method.invoke(who, args);
+            } catch (Throwable e) {
+                int id = args != null && args.length > 0 && args[0] instanceof Integer ? (int) args[0] : 0;
+                Class<?> userInfo = Class.forName("android.content.pm.UserInfo");
+                // FLAG_PRIMARY | FLAG_ADMIN | FLAG_FULL | FLAG_MAIN
+                return userInfo.getConstructor(int.class, String.class, int.class).newInstance(id, "Owner", 0x1 | 0x2 | 0x400 | 0x4000);
+            }
+        }
+    }
 }

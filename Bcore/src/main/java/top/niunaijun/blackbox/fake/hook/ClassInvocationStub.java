@@ -118,7 +118,11 @@ public abstract class ClassInvocationStub implements InvocationHandler, IInjectH
             try {
                 return method.invoke(mBase, args);
             } catch (Throwable e) {
-                throw e.getCause();
+                Throwable cause = e.getCause() != null ? e.getCause() : e;
+                if (cause instanceof SecurityException && GooglePrivileged.shouldSoften(method)) {
+                    return GooglePrivileged.defaultValue(method.getReturnType());
+                }
+                throw cause;
             }
         }
 

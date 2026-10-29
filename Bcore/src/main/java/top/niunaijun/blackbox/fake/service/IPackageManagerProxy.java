@@ -23,6 +23,7 @@ import black.android.app.BRContextImpl;
 import black.android.app.ContextImpl;
 import black.android.content.pm.BRPackageManager;
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.fake.frameworks.BPackageManager;
 import top.niunaijun.blackbox.core.GooglePrivappPermissions;
 import top.niunaijun.blackbox.utils.NearbyPermissions;
 import top.niunaijun.blackbox.app.BActivityThread;
@@ -352,6 +353,117 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             MethodParameterUtils.replaceFirstAppPkg(args);
             return method.invoke(who, args);
         }
+    }
+
+    /**
+     * Firmas de apps del box: el sistema real no conoce sus paquetes ni sus UID virtuales y responde "no".
+     * GoogleSignatureVerifier (GMS) las usa para validar que quien llama es una app de Google.
+     */
+    @ProxyMethod("hasSigningCertificate")
+    public static class HasSigningCertificate extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String pkg = (String) args[0];
+            if (!BlackBoxCore.get().isInstalled(pkg, BActivityThread.getUserId())) {
+                return method.invoke(who, args);
+            }
+            return boxHasCertificate(pkg, (byte[]) args[1], (int) args[2]);
+        }
+    }
+
+    @ProxyMethod("hasUidSigningCertificate")
+    public static class HasUidSigningCertificate extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String[] pkgs = BPackageManager.get().getPackagesForUid((int) args[0]);
+            if (pkgs == null || pkgs.length == 0) {
+                return method.invoke(who, args);
+            }
+            for (String pkg : pkgs) {
+                if (boxHasCertificate(pkg, (byte[]) args[1], (int) args[2])) {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
+
+    @ProxyMethod("checkSignatures")
+    public static class CheckSignatures extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String a = (String) args[0];
+            String b = (String) args[1];
+            int userId = BActivityThread.getUserId();
+            if (!BlackBoxCore.get().isInstalled(a, userId) && !BlackBoxCore.get().isInstalled(b, userId)) {
+                return method.invoke(who, args);
+            }
+            return compareSignatures(signaturesOf(a), signaturesOf(b));
+        }
+    }
+
+    @ProxyMethod("checkUidSignatures")
+    public static class CheckUidSignatures extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            String[] a = BPackageManager.get().getPackagesForUid((int) args[0]);
+            String[] b = BPackageManager.get().getPackagesForUid((int) args[1]);
+            if ((a == null || a.length == 0) && (b == null || b.length == 0)) {
+                return method.invoke(who, args);
+            }
+            return compareSignatures(a == null || a.length == 0 ? null : signaturesOf(a[0]),
+                    b == null || b.length == 0 ? null : signaturesOf(b[0]));
+        }
+    }
+
+    private static android.content.pm.Signature[] signaturesOf(String pkg) {
+        if (pkg == null) {
+            return null;
+        }
+        PackageInfo info = BPackageManager.get().getPackageInfo(pkg, PackageManager.GET_SIGNATURES, BActivityThread.getUserId());
+        return info != null ? info.signatures : null;
+    }
+
+    private static int compareSignatures(android.content.pm.Signature[] a, android.content.pm.Signature[] b) {
+        if (a == null || a.length == 0 || b == null || b.length == 0) {
+            return PackageManager.SIGNATURE_UNKNOWN_PACKAGE;
+        }
+        java.util.Set<android.content.pm.Signature> sa = new java.util.HashSet<>(java.util.Arrays.asList(a));
+        java.util.Set<android.content.pm.Signature> sb = new java.util.HashSet<>(java.util.Arrays.asList(b));
+        return sa.equals(sb) ? PackageManager.SIGNATURE_MATCH : PackageManager.SIGNATURE_NO_MATCH;
+    }
+
+    /** Certificado actual o histórico del paquete del box (type 0: X.509 en bruto, 1: SHA-256). */
+    private static boolean boxHasCertificate(String pkg, byte[] cert, int type) {
+        PackageInfo info = BPackageManager.get().getPackageInfo(pkg,
+                PackageManager.GET_SIGNING_CERTIFICATES | PackageManager.GET_SIGNATURES, BActivityThread.getUserId());
+        if (info == null || cert == null) {
+            return false;
+        }
+        java.util.List<android.content.pm.Signature> all = new java.util.ArrayList<>();
+        if (info.signatures != null) {
+            all.addAll(java.util.Arrays.asList(info.signatures));
+        }
+        if (android.os.Build.VERSION.SDK_INT >= 28 && info.signingInfo != null) {
+            android.content.pm.Signature[] current = info.signingInfo.getApkContentsSigners();
+            if (current != null) all.addAll(java.util.Arrays.asList(current));
+            android.content.pm.Signature[] history = info.signingInfo.getSigningCertificateHistory();
+            if (history != null) all.addAll(java.util.Arrays.asList(history));
+        }
+        for (android.content.pm.Signature sig : all) {
+            byte[] raw = sig.toByteArray();
+            if (type == 1) {
+                try {
+                    raw = java.security.MessageDigest.getInstance("SHA-256").digest(raw);
+                } catch (java.security.NoSuchAlgorithmException e) {
+                    return false;
+                }
+            }
+            if (java.util.Arrays.equals(raw, cert)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     @ProxyMethod("getPackagesForUid")

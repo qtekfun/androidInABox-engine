@@ -43,6 +43,61 @@ public class NativeCore {
 
 
     @Keep
+    private static volatile int sBoxServerPid = -1;
+
+    /** Hook nativo de IPCThreadState::getCallingUid (Binder.getCallingUid es @CriticalNative en Android 12+). */
+    public static native boolean setCallingUidMapping(int hostUid, int serverPid, int selfUid);
+
+    /** PID del proceso servidor del box (<host>:black), buscando en /proc; -1 si no está. */
+    public static int findBoxServerPid() {
+        java.io.File[] procs = new java.io.File("/proc").listFiles();
+        if (procs == null) {
+            return -1;
+        }
+        for (java.io.File f : procs) {
+            String n = f.getName();
+            if (n.isEmpty() || !Character.isDigit(n.charAt(0))) {
+                continue;
+            }
+            try {
+                int pid = Integer.parseInt(n);
+                if (isBoxServerPid(pid)) {
+                    return pid;
+                }
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return -1;
+    }
+
+    /** El PID es el del proceso servidor del box (<host>:black), leído de /proc/<pid>/cmdline. */
+    private static boolean isBoxServerPid(int pid) {
+        if (pid <= 0) {
+            return false;
+        }
+        if (pid == sBoxServerPid) {
+            return true;
+        }
+        try (java.io.FileInputStream in = new java.io.FileInputStream("/proc/" + pid + "/cmdline")) {
+            byte[] buf = new byte[256];
+            int n = in.read(buf);
+            if (n <= 0) {
+                return false;
+            }
+            String name = new String(buf, 0, n).trim();
+            int end = name.indexOf('\0');
+            if (end >= 0) {
+                name = name.substring(0, end);
+            }
+            if (name.equals(BlackBoxCore.getHostPkg() + ":black")) {
+                sBoxServerPid = pid;
+                return true;
+            }
+        } catch (Throwable ignored) {
+        }
+        return false;
+    }
+
     public static int getCallingUid(int origCallingUid) {
         try {
             
@@ -53,6 +108,13 @@ public class NativeCore {
                 return origCallingUid;
 
             if (origCallingUid == BlackBoxCore.getHostUid()) {
+                // Dentro del box el servidor del motor (:black) hace de system_server. Un UID de sistema no
+                // existe en el box (getPackagesForUid(1000) no da nada), así que se presenta como el propio
+                // proceso: es lo que las apps consideran de confianza (p. ej. GMS: callingUid == myUid()).
+                if (isBoxServerPid(android.os.Binder.getCallingPid())) {
+                    int self = top.niunaijun.blackbox.app.BActivityThread.getBUid();
+                    return self > 0 ? self : Process.SYSTEM_UID;
+                }
                 
                 String appPackageName = BlackBoxCore.getAppPackageName();
                 if (appPackageName != null && appPackageName.equals("com.google.android.gms")){

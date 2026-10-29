@@ -654,6 +654,20 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
         }.bind();
     }
 
+    /** UID virtual, PID y paquete de la app del box que hace la llamada, en el formato de AccountManager. */
+    private void putCallerIdentity(Bundle options) {
+        int callingPid = Binder.getCallingPid();
+        ProcessRecord caller = BProcessManagerService.get().findProcessByPid(callingPid);
+        if (caller == null) {
+            return;
+        }
+        options.putInt(AccountManager.KEY_CALLER_UID, caller.buid);
+        options.putInt(AccountManager.KEY_CALLER_PID, callingPid);
+        if (options.getString(AccountManager.KEY_ANDROID_PACKAGE_NAME) == null) {
+            options.putString(AccountManager.KEY_ANDROID_PACKAGE_NAME, caller.getPackageName());
+        }
+    }
+
     @Override
     public void addAccount(IAccountManagerResponse response, String accountType, String authTokenType, String[] requiredFeatures, boolean expectActivityLaunch, Bundle optionsIn, int userId) throws RemoteException {
         if (response == null) throw new IllegalArgumentException("response is null");
@@ -662,8 +676,9 @@ public class BAccountManagerService extends IBAccountManagerService.Stub impleme
 
 
         final Bundle options = (optionsIn == null) ? new Bundle() : optionsIn;
-
-
+        // Como AccountManagerService: el autenticador recibe la identidad de quien pide la cuenta.
+        // GMS solo acepta peticiones de apps de Google ("0p") y lo comprueba con estos campos.
+        putCallerIdentity(options);
 
         BUserAccounts accounts = getUserAccounts(userId);
         new Session(accounts, response, accountType, expectActivityLaunch,

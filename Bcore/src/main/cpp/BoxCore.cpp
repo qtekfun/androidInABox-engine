@@ -132,9 +132,12 @@ bool disableResourceLoading(JNIEnv *env, jclass clazz) {
     return true;
 }
 
+jboolean setCallingUidMapping(JNIEnv *env, jclass clazz, jint hostUid, jint serverPid, jint selfUid);
+
 static JNINativeMethod gMethods[] = {
         {"disableResourceLoading", "()Z",                         (void *) disableResourceLoading},
         {"setPropertySpoof", "(Z)Z",                              (void *) setPropertySpoof},
+        {"setCallingUidMapping", "(III)Z",                        (void *) setCallingUidMapping},
         {"hideXposed", "()V",                                     (void *) hideXposed},
         {"addIORule",  "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",   "()V",                                     (void *) enableIO},
