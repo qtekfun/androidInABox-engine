@@ -34,6 +34,11 @@ import top.niunaijun.blackboxa.data.GmsRepository
 import top.niunaijun.blackboxa.data.ProfileNames
 import kotlin.coroutines.resume
 
+const val GMS_GSF = "com.google.android.gsf"
+const val GMS_CORE = "com.google.android.gms"
+const val GMS_STORE = "com.android.vending"
+val GMS_PACKAGES = listOf(GMS_GSF, GMS_CORE, GMS_STORE)
+
 data class UiProfile(val id: Int, val name: String, val appCount: Int)
 
 data class UiApp(
@@ -274,23 +279,116 @@ class HostViewModel : ViewModel() {
 
     val gmsSupported: Boolean get() = try { BlackBoxCore.get().isSupportGms } catch (_: Throwable) { false }
 
+    /** Paquetes GMS presentes por perfil (GSF, GmsCore, Play Store). */
+    private val _gmsPkgs = MutableStateFlow<Map<Int, Set<String>>>(emptyMap())
+    val gmsPkgs: StateFlow<Map<Int, Set<String>>> = _gmsPkgs.asStateFlow()
+
+    /** Ultimo error legible del motor al instalar GMS, por perfil. */
+    private val _gmsError = MutableStateFlow<Map<Int, String>>(emptyMap())
+    val gmsError: StateFlow<Map<Int, String>> = _gmsError.asStateFlow()
+
     fun loadGms() {
         viewModelScope.launch {
-            val list = awaitLive<List<GmsBean>> { gmsRepo.getGmsInstalledList(it) }
-            _gms.value = list.orEmpty()
+            val list = awaitLive<List<GmsBean>> { gmsRepo.getGmsInstalledList(it) }.orEmpty()
+            _gms.value = list
+            _gmsPkgs.value = withContext(Dispatchers.IO) {
+                list.associate { b ->
+                    b.userID to GMS_PACKAGES.filter {
+                        try { BlackBoxCore.get().isInstalled(it, b.userID) } catch (_: Throwable) { false }
+                    }.toSet()
+                }
+            }
         }
     }
 
-    fun installGms(userId: Int) = gmsAction { gmsRepo.installGms(userId, it) }
-    fun uninstallGms(userId: Int) = gmsAction { gmsRepo.uninstallGms(userId, it) }
+    fun installGms(userId: Int) = gmsAction(userId) { gmsRepo.installGms(userId, it) }
+    fun uninstallGms(userId: Int) = gmsAction(userId) { gmsRepo.uninstallGms(userId, it) }
 
-    private fun gmsAction(call: (MutableLiveData<GmsInstallBean>) -> Unit) {
+    private fun gmsAction(userId: Int, call: (MutableLiveData<GmsInstallBean>) -> Unit) {
         viewModelScope.launch {
             _busy.value = true
+            _gmsError.update { it - userId }
             val r = awaitLive<GmsInstallBean>(call)
             _busy.value = false
-            if (r != null) say(r.msg)
+            if (r != null) {
+                say(r.msg)
+                if (!r.success) _gmsError.update { it + (userId to r.msg) }
+            }
             loadGms()
+        }
+    }
+
+    /**
+     * Instala GMS desde archivos elegidos por el usuario. Cada archivo se identifica por su nombre
+     * de paquete y se instala en el orden GSF, GmsCore, Play Store, sin importar el orden elegido.
+     */
+    fun installGmsFiles(userId: Int, uris: List<Uri>) {
+        viewModelScope.launch {
+            _busy.value = true
+            _gmsError.update { it - userId }
+            val byPkg = withContext(Dispatchers.IO) {
+                uris.mapNotNull { u -> detectPackage(u)?.let { it to u } }.toMap()
+            }
+            val unknown = uris.size - byPkg.size
+            if (byPkg.isEmpty()) {
+                val m = str(R.string.gms_files_none)
+                say(m); _gmsError.update { it + (userId to m) }
+            }
+            for (pkg in GMS_PACKAGES) {
+                val uri = byPkg[pkg] ?: continue
+                val msg = awaitLive<String> { appsRepo.installUris(listOf(uri.toString()), userId, it) }
+                val ok = msg == str(R.string.install_success)
+                say(if (ok) str(R.string.gms_file_ok, gmsLabel(pkg)) else (msg ?: ""))
+                if (!ok) {
+                    _gmsError.update { it + (userId to (msg ?: "")) }
+                    break
+                }
+            }
+            if (unknown > 0 && byPkg.isNotEmpty()) say(str(R.string.gms_files_unknown, unknown))
+            _busy.value = false
+            refreshProfiles()
+            loadGms()
+        }
+    }
+
+    private fun gmsLabel(pkg: String) = str(
+        when (pkg) {
+            GMS_GSF -> R.string.gms_step_gsf
+            GMS_CORE -> R.string.gms_step_core
+            else -> R.string.gms_step_store
+        }
+    ).substringAfter(". ")
+
+    /** Nombre de paquete de un APK o bundle (XAPK con manifest.json); null si no se reconoce. */
+    private fun detectPackage(uri: Uri): String? {
+        val tmp = java.io.File(ctx.cacheDir, "gms-detect-${System.nanoTime()}")
+        try {
+            ctx.contentResolver.openInputStream(uri)?.use { i -> tmp.outputStream().use { o -> i.copyTo(o) } }
+                ?: return null
+            ctx.packageManager.getPackageArchiveInfo(tmp.absolutePath, 0)?.packageName?.let { return it }
+            java.util.zip.ZipFile(tmp).use { z ->
+                z.getEntry("manifest.json")?.let { e ->
+                    val m = z.getInputStream(e).bufferedReader().readText()
+                    Regex("\"package_name\"\\s*:\\s*\"([^\"]+)\"").find(m)?.groupValues?.get(1)?.let { return it }
+                }
+                // APKS/APKM: el APK base va dentro; se extrae para leer su paquete.
+                val base = z.entries().asSequence().firstOrNull { it.name == "base.apk" }
+                    ?: z.entries().asSequence().firstOrNull { it.name.endsWith(".apk") && !it.name.contains("split") }
+                if (base != null) {
+                    val inner = java.io.File(ctx.cacheDir, "gms-detect-inner-${System.nanoTime()}")
+                    try {
+                        z.getInputStream(base).use { i -> inner.outputStream().use { o -> i.copyTo(o) } }
+                        return ctx.packageManager.getPackageArchiveInfo(inner.absolutePath, 0)?.packageName
+                    } finally {
+                        inner.delete()
+                    }
+                }
+            }
+            return null
+        } catch (_: Throwable) {
+            return null
+        } finally {
+            tmp.delete()
         }
     }
 

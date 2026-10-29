@@ -67,6 +67,15 @@
     <string name="gms_not_installed">No instalados</string>
     <string name="gms_install">Instalar</string>
     <string name="gms_uninstall">Desinstalar</string>
+    <string name="gms_partial">Instalación incompleta</string>
+    <string name="gms_install_files">Instalar desde archivos</string>
+    <string name="gms_files_title">Instalar servicios de Google en %1$s</string>
+    <string name="gms_files_body">Elige los APK del framework de servicios, de los servicios de Google Play y de la Play Store. Puedes elegir los tres a la vez o de uno en uno; cada uno se reconoce por su nombre de paquete y se instala en el orden correcto.</string>
+    <string name="gms_files_pick">Elegir archivos</string>
+    <string name="gms_files_close">Cerrar</string>
+    <string name="gms_files_none">Ninguno de los archivos elegidos es un APK o bundle reconocido.</string>
+    <string name="gms_files_unknown">%1$d archivos no se reconocieron y se omitieron.</string>
+    <string name="gms_file_ok">%1$s instalado</string>
     <string name="gms_unsupported">Los servicios de Google no están disponibles en este dispositivo o versión.</string>
     <string name="gms_working">Trabajando…</string>
     <string name="gms_step_gsf">1. Framework de servicios</string>

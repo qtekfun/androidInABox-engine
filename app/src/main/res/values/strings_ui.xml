@@ -67,6 +67,15 @@
     <string name="gms_not_installed">Not installed</string>
     <string name="gms_install">Install</string>
     <string name="gms_uninstall">Uninstall</string>
+    <string name="gms_partial">Partially installed</string>
+    <string name="gms_install_files">Install from files</string>
+    <string name="gms_files_title">Install Google services in %1$s</string>
+    <string name="gms_files_body">Choose the APK files of the services framework, Google Play services and the Play Store. You can pick all three at once or one at a time; each is recognized by its package name and installed in the right order.</string>
+    <string name="gms_files_pick">Choose files</string>
+    <string name="gms_files_close">Close</string>
+    <string name="gms_files_none">None of the chosen files is a recognized APK or bundle.</string>
+    <string name="gms_files_unknown">%1$d files were not recognized and were skipped.</string>
+    <string name="gms_file_ok">%1$s installed</string>
     <string name="gms_unsupported">Google services are not available on this device or build.</string>
     <string name="gms_working">Working…</string>
     <string name="gms_step_gsf">1. Services framework</string>
