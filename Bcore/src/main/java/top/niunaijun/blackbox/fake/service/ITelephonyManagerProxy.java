@@ -84,7 +84,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
 
 
-            return fakeImei();
+            return null; // sin IMEI, como un dispositivo sin telefonía legible (Android 10+)
         }
     }
 
@@ -94,7 +94,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
 
 
-            return fakeImei();
+            return null; // sin IMEI, como un dispositivo sin telefonía legible (Android 10+)
         }
     }
 
@@ -104,7 +104,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
 
 
-            return fakeMeid();
+            return null;
         }
     }
 
@@ -138,7 +138,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetDeviceIdWithFeature extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return fakeImei();
+            return null; // sin IMEI, como un dispositivo sin telefonía legible (Android 10+)
         }
     }
 
