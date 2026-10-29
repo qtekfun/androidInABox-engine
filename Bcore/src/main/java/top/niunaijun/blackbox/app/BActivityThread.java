@@ -399,7 +399,9 @@ public class BActivityThread extends IBActivityThread.Stub {
             BRCompatibility.get().setTargetSdkVersion(applicationInfo.targetSdkVersion);
         }
 
-        NativeCore.init(Build.VERSION.SDK_INT);
+        if (!NativeCore.init(Build.VERSION.SDK_INT)) {
+            Slog.e(TAG, "init jni hook error: JniHook no es fiable en Android " + Build.VERSION.SDK_INT);
+        }
         assert packageContext != null;
         IOCore.get().enableRedirect(packageContext);
 

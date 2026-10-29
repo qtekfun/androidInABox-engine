@@ -1731,8 +1731,12 @@ public class BlackBoxCore extends ClientConfiguration {
             
             
             try {
-                NativeCore.init(android.os.Build.VERSION.SDK_INT);
-                Slog.d(TAG, "NativeCore initialized successfully");
+                boolean jniHookOk = NativeCore.init(android.os.Build.VERSION.SDK_INT);
+                if (jniHookOk) {
+                    Slog.d(TAG, "NativeCore initialized successfully");
+                } else {
+                    Slog.e(TAG, "init jni hook error: JniHook no es fiable en Android " + Build.VERSION.SDK_INT);
+                }
             } catch (Exception e) {
                 Slog.w(TAG, "NativeCore initialization failed: " + e.getMessage());
             }

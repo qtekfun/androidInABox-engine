@@ -18,6 +18,8 @@ static struct {
 
     int class_flags_offset;
 
+    bool healthy;
+
     jclass method_utils_class;
     jmethodID get_method_desc_id;
     jmethodID get_method_declaring_class_id;
@@ -137,7 +139,7 @@ void JniHook::HookJniFun(JNIEnv *env, jobject java_method, void *new_fun,
 void
 JniHook::HookJniFun(JNIEnv *env, const char *class_name, const char *method_name, const char *sign,
                     void *new_fun, void **orig_fun, bool is_static) {
-    if (HookEnv.art_method_native_offset == 0) {
+    if (!HookEnv.healthy || HookEnv.art_method_native_offset == 0) {
         return;
     }
     jclass clazz = env->FindClass(class_name);
@@ -219,7 +221,11 @@ void registerNative(JNIEnv *env) {
     }
 }
 
-void JniHook::InitJniHook(JNIEnv *env, int api_level) {
+bool JniHook::InitJniHook(JNIEnv *env, int api_level) {
+    HookEnv.healthy = false;
+    HookEnv.art_method_native_offset = 0;
+    HookEnv.art_method_flags_offset = 0;
+    HookEnv.art_field_flags_offset = 0;
     registerNative(env);
     HookEnv.api_level = api_level;
 
@@ -235,23 +241,35 @@ void JniHook::InitJniHook(JNIEnv *env, int api_level) {
     void *nativeOffsetField2 = GetFieldMethod(env, env->ToReflectedField(clazz, nativeOffsetField2Id,
                                                                          true));
     HookEnv.art_field_size = (size_t) nativeOffsetField2 - (size_t) nativeOffsetField;
+    if (HookEnv.art_field_size < 8 || HookEnv.art_field_size > 64 ||
+        HookEnv.art_field_size % sizeof(int32_t) != 0) {
+        ALOGE("init jni hook error. art_field_size out of range: %zu",
+              (size_t) HookEnv.art_field_size);
+        return false;
+    }
 
     void *nativeOffset = GetArtMethod(env, clazz, nativeOffsetId);
     void *nativeOffset2 = GetArtMethod(env, clazz, nativeOffset2Id);
     HookEnv.art_method_size = (size_t) nativeOffset2 - (size_t) nativeOffset;
+    if (HookEnv.art_method_size < 16 || HookEnv.art_method_size > 256 ||
+        HookEnv.art_method_size % sizeof(uint32_t) != 0) {
+        ALOGE("init jni hook error. art_method_size out of range: %zu",
+              (size_t) HookEnv.art_method_size);
+        return false;
+    }
 
     int i = 0;
     
     auto artMethod = reinterpret_cast<uintptr_t *>(nativeOffset);
-    for (i = 0; i < HookEnv.art_method_size; ++i) {
+    for (i = 0; i < HookEnv.art_method_size / sizeof(uintptr_t); ++i) {
         if (reinterpret_cast<void *>(artMethod[i]) == native_offset) {
             HookEnv.art_method_native_offset = i;
             break;
         }
     }
-    if(i == HookEnv.art_method_size){
+    if (i == HookEnv.art_method_size / sizeof(uintptr_t) || HookEnv.art_method_native_offset <= 0) {
         ALOGE("init jni hook error. art_method_native_offset not found!");
-        return;
+        return false;
     }
 
     uint32_t flags = 0x0;
@@ -267,7 +285,7 @@ void JniHook::InitJniHook(JNIEnv *env, int api_level) {
     }
 
     char *start = reinterpret_cast<char *>(artMethod);
-    for (i = 1; i < HookEnv.art_method_size; ++i) {
+    for (i = 1; i < HookEnv.art_method_size / sizeof(uint32_t); ++i) {
         auto value = *(uint32_t *) (start + i * sizeof(uint32_t));
 
         if (value == flags) {
@@ -275,9 +293,10 @@ void JniHook::InitJniHook(JNIEnv *env, int api_level) {
             break;
         }
     }
-    if(i == HookEnv.art_method_size){
+    if (i == HookEnv.art_method_size / sizeof(uint32_t) || HookEnv.art_method_flags_offset <= 0 ||
+        HookEnv.art_method_flags_offset >= (int) HookEnv.art_method_size) {
         ALOGE("init jni hook error. art_method_flags_offset not found!");
-        return;
+        return false;
     }
 
     flags = 0x0;
@@ -288,16 +307,17 @@ void JniHook::InitJniHook(JNIEnv *env, int api_level) {
         flags = flags | kAccPublicApi;
     }
     char *fieldStart = reinterpret_cast<char *>(nativeOffsetField);
-    for (i = 1; i < HookEnv.art_field_size; ++i) {
+    for (i = 1; i < HookEnv.art_field_size / sizeof(int32_t); ++i) {
         auto value = *(int32_t *) (fieldStart + i * sizeof(int32_t));
         if (value == flags) {
             HookEnv.art_field_flags_offset = i * sizeof(int32_t);
             break;
         }
     }
-    if(i == HookEnv.art_field_size){
+    if (i == HookEnv.art_field_size / sizeof(int32_t) || HookEnv.art_field_flags_offset <= 0 ||
+        HookEnv.art_field_flags_offset >= (int) HookEnv.art_field_size) {
         ALOGE("init jni hook error. art_field_flags_offset not found!");
-        return;
+        return false;
     }
 
     HookEnv.method_utils_class = env->FindClass("top/niunaijun/jnihook/MethodUtils");
@@ -308,5 +328,19 @@ void JniHook::InitJniHook(JNIEnv *env, int api_level) {
                                                                    "(Ljava/lang/reflect/Method;)Ljava/lang/String;");
     HookEnv.get_method_name_id = env->GetStaticMethodID(HookEnv.method_utils_class, "getMethodName",
                                                         "(Ljava/lang/reflect/Method;)Ljava/lang/String;");
+    if (env->ExceptionCheck() || HookEnv.method_utils_class == nullptr ||
+        HookEnv.get_method_desc_id == nullptr || HookEnv.get_method_declaring_class_id == nullptr ||
+        HookEnv.get_method_name_id == nullptr) {
+        env->ExceptionClear();
+        ALOGE("init jni hook error. MethodUtils not resolved!");
+        return false;
+    }
+
+    HookEnv.healthy = true;
+    return true;
 }
 
+
+bool JniHook::IsHealthy() {
+    return HookEnv.healthy;
+}

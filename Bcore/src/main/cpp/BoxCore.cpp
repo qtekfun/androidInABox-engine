@@ -85,7 +85,7 @@ void hideXposed(JNIEnv *env, jclass clazz) {
     VMClassLoaderHook::hideXposed();
 }
 
-void init(JNIEnv *env, jobject clazz, jint api_level) {
+jboolean init(JNIEnv *env, jobject clazz, jint api_level) {
     ALOGD("NativeCore init.");
     VMEnv.api_level = api_level;
     VMEnv.NativeCoreClass = (jclass) env->NewGlobalRef(env->FindClass(VMCORE_CLASS));
@@ -97,7 +97,11 @@ void init(JNIEnv *env, jobject clazz, jint api_level) {
     VMEnv.loadEmptyDex = env->GetStaticMethodID(VMEnv.NativeCoreClass, "loadEmptyDex",
                                                 "()[J");
 
-    JniHook::InitJniHook(env, api_level);
+    return JniHook::InitJniHook(env, api_level) ? JNI_TRUE : JNI_FALSE;
+}
+
+jboolean isJniHookHealthy(JNIEnv *env, jclass clazz) {
+    return JniHook::IsHealthy() ? JNI_TRUE : JNI_FALSE;
 }
 
 void addIORule(JNIEnv *env, jclass clazz, jstring target_path,
@@ -137,7 +141,8 @@ static JNINativeMethod gMethods[] = {
         {"hideXposed", "()V",                                     (void *) hideXposed},
         {"addIORule",  "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",   "()V",                                     (void *) enableIO},
-        {"init",       "(I)V",                                    (void *) init},
+        {"init",       "(I)Z",                                    (void *) init},
+        {"isJniHookHealthy", "()Z",                               (void *) isJniHookHealthy},
 };
 
 int registerNativeMethods(JNIEnv *env, const char *className,

@@ -26,7 +26,9 @@ public class NativeCore {
         System.loadLibrary("blackbox");
     }
 
-    public static native void init(int apiLevel);
+    public static native boolean init(int apiLevel);
+
+    public static native boolean isJniHookHealthy();
 
     public static native void enableIO();
 
