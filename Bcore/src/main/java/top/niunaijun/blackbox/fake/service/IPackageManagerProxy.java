@@ -312,6 +312,38 @@ public class IPackageManagerProxy extends BinderInvocationStub {
         }
     }
 
+    /**
+     * Las consultas de servicios dirigidas a un paquete instalado en el box se responden con el
+     * PackageManager virtual. Con el del sistema, GMS leía el id de recurso raw de su propio
+     * build_data del GMS real del dispositivo y lo abría contra el APK virtual (otro id), lo que
+     * daba un protobuf corrupto ("invalid tag (zero)") y dejaba sin registrar sus paquetes de flags.
+     */
+    @ProxyMethod("queryIntentServices")
+    public static class QueryIntentServices extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            Intent intent = MethodParameterUtils.getFirstParam(args, Intent.class);
+            Object rawFlags = args.length > 2 ? args[2] : null;
+            String target = intent == null ? null
+                    : (intent.getComponent() != null ? intent.getComponent().getPackageName() : intent.getPackage());
+            if (intent != null && target != null && (rawFlags instanceof Integer || rawFlags instanceof Long)) {
+                try {
+                    int flags = MethodParameterUtils.toInt(rawFlags);
+                    if (BlackBoxCore.getBPackageManager().getPackageInfo(target, 0, BlackBoxCore.getUserId()) != null) {
+                        List<ResolveInfo> resolves = BlackBoxCore.getBPackageManager()
+                                .queryIntentServices(intent, flags, BlackBoxCore.getUserId());
+                        Slog.d(TAG, "queryIntentServices virtual: " + intent.getAction() + " pkg=" + target
+                                + " -> " + (resolves == null ? 0 : resolves.size()));
+                        return ParceledListSliceCompat.create(resolves);
+                    }
+                } catch (Throwable e) {
+                    Slog.w(TAG, "queryIntentServices virtual falló, uso el del sistema: " + e);
+                }
+            }
+            return method.invoke(who, args);
+        }
+    }
+
     @ProxyMethod("queryIntentReceivers")
     public static class QueryBroadcastReceivers extends MethodHook {
         @Override
