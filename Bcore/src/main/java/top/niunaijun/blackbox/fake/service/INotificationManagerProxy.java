@@ -15,6 +15,7 @@ import black.android.app.BRNotificationManager;
 import black.android.content.pm.BRParceledListSlice;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.fake.frameworks.BNotificationManager;
+import top.niunaijun.blackbox.fake.frameworks.notification.NotificationPresenter;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.ProxyMethod;
@@ -105,6 +106,7 @@ public class INotificationManagerProxy extends BinderInvocationStub {
             String tag = (String) args[getTagIndex()];
             int id = (int) args[getIdIndex()];
             Notification notification = MethodParameterUtils.getFirstParam(args, Notification.class);
+            notification = NotificationPresenter.present(notification);
             BNotificationManager.get().enqueueNotificationWithTag(id, tag, notification);
             return 0;
         }
