@@ -3,6 +3,7 @@ package top.niunaijun.blackbox.core.system.notification;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
@@ -57,5 +58,15 @@ public class NotificationIdsTest {
         assertFalse(NotificationIds.matches("bb:7:com.a:x", 1, "com.a"));
         assertFalse(NotificationIds.matches("bb:1:com.ab:x", 1, "com.a"));
         assertFalse(NotificationIds.matches("default", -1, "com.a"));
+    }
+
+    @Test
+    public void foregroundIdIsStableDistinctAndNeverZero() {
+        int a = NotificationIds.foregroundId(0, "com.a", 1);
+        assertEquals(a, NotificationIds.foregroundId(0, "com.a", 1));
+        assertNotEquals(a, NotificationIds.foregroundId(0, "com.b", 1));
+        assertNotEquals(a, NotificationIds.foregroundId(1, "com.a", 1));
+        assertTrue(a > 0);
+        assertNotEquals(0, NotificationIds.foregroundId(0, null, 0));
     }
 }

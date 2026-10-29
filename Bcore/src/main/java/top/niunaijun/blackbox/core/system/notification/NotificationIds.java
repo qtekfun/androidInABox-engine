@@ -22,6 +22,20 @@ public final class NotificationIds {
         return prefix(userId, packageName) + (guestId == null ? "" : guestId);
     }
 
+    /**
+     * Id real (entero) de la notificacion de un servicio en primer plano del invitado. El sistema
+     * no admite tag en startForeground, y dos apps del box podrian usar el mismo id (p. ej. 1):
+     * se mezcla (perfil, paquete, id) en 30 bits y se marca el bit 30 para no chocar con ids del
+     * host. Nunca devuelve 0 (invalido para startForeground).
+     */
+    public static int foregroundId(int userId, String packageName, int guestId) {
+        int h = 17;
+        h = 31 * h + userId;
+        h = 31 * h + (packageName == null ? 0 : packageName.hashCode());
+        h = 31 * h + guestId;
+        return 0x40000000 | (h & 0x3fffffff);
+    }
+
     /** Id real del grupo de canales por defecto de (paquete, perfil), sin ':' final. */
     public static String packageGroup(int userId, String packageName) {
         return PREFIX + userId + ":" + packageName;

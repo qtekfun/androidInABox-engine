@@ -55,6 +55,11 @@ import top.niunaijun.blackbox.utils.compat.ActivityManagerCompat;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 import top.niunaijun.blackbox.utils.compat.ParceledListSliceCompat;
 import top.niunaijun.blackbox.utils.compat.TaskDescriptionCompat;
+import android.app.Notification;
+import black.android.app.BRNotificationO;
+import black.android.app.NotificationOContext;
+import top.niunaijun.blackbox.core.system.notification.NotificationIds;
+import top.niunaijun.blackbox.fake.frameworks.notification.NotificationPresenter;
 import top.niunaijun.blackbox.utils.Slog;
 
 import static android.content.Context.RECEIVER_EXPORTED;
@@ -783,12 +788,48 @@ public class IActivityManagerProxy extends ClassInvocationStub {
     public static class setServiceForeground extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            
-            
+            // Tipo 0 mientras los ProxyService$Pn no declaren tipos (R04.19)
             for (int i = args.length - 1; i >= 0; i--) {
                 if (args[i] instanceof Integer) {
-                    args[i] = 0; 
+                    args[i] = 0;
                     break;
+                }
+            }
+            // Firma: (ComponentName, IBinder token, int id, Notification, int flags[, int type])
+            int idIndex = -1;
+            for (int i = 0; i < args.length; i++) {
+                if (args[i] instanceof Notification) {
+                    idIndex = i - 1;
+                    break;
+                }
+            }
+            if (idIndex >= 0 && args[idIndex] instanceof Integer && args[idIndex + 1] != null) {
+                try {
+                    int userId = BActivityThread.getUserId();
+                    String pkg = BActivityThread.getAppPackageName();
+                    Notification n = NotificationPresenter.present((Notification) args[idIndex + 1]);
+                    if (n.extras != null) {
+                        n.extras.remove(NotificationPresenter.EXTRA_APP_LABEL);
+                        n.extras.remove(NotificationPresenter.EXTRA_PROFILE_LABEL);
+                    }
+                    // El canal debe existir en el host con el id con prefijo bb:<perfil>:<pkg>:<canal>
+                    if (BuildCompat.isOreo()) {
+                        NotificationOContext ctx = BRNotificationO.get(n);
+                        if (ctx._check_mChannelId() != null) {
+                            ctx._set_mChannelId(NotificationIds.scoped(userId, pkg, ctx.mChannelId()));
+                        }
+                        if (ctx._check_mGroupKey() != null) {
+                            ctx._set_mGroupKey(NotificationIds.scoped(userId, pkg, ctx.mGroupKey()));
+                        }
+                    }
+                    int guestId = (Integer) args[idIndex];
+                    int realId = NotificationIds.foregroundId(userId, pkg, guestId);
+                    args[idIndex] = realId;
+                    args[idIndex + 1] = n;
+                    Slog.i(TAG, "startForeground del invitado " + pkg + " id " + guestId + " -> " + realId
+                            + " canal=" + (BuildCompat.isOreo() ? n.getChannelId() : null));
+                } catch (Throwable e) {
+                    Slog.w(TAG, "No se pudo adaptar la notificacion de primer plano de " + BActivityThread.getAppPackageName(), e);
                 }
             }
             return method.invoke(who, args);
