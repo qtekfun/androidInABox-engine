@@ -476,9 +476,23 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 uid = (int) args[0];
             }
             String[] packagesForUid = BlackBoxCore.getBPackageManager().getPackagesForUid(uid);
+            // SQLiteGlobal (Android 16) toma getPackagesForUid(myUid())[0]; un array vacio revienta con
+            // ArrayIndexOutOfBounds. Si el uid es el propio, se devuelve el paquete del invitado actual.
+            if (packagesForUid == null || packagesForUid.length == 0) {
+                String own = BActivityThread.getAppPackageName();
+                if (isOwnUid(uid, BlackBoxCore.getHostUid(), BActivityThread.getBUid(), android.os.Process.myUid())
+                        && own != null) {
+                    packagesForUid = new String[]{own};
+                }
+            }
             Slog.d(TAG, args[0] + " , " + BActivityThread.getAppProcessName() + " GetPackagesForUid: " + Arrays.toString(packagesForUid));
             return packagesForUid;
         }
+    }
+
+    /** Indica si el uid pedido es el del propio proceso invitado (host, virtual o el de este proceso). */
+    static boolean isOwnUid(int uid, int hostUid, int virtualUid, int myUid) {
+        return uid == hostUid || uid == virtualUid || uid == myUid;
     }
 
     /** El invitado instala por sesiones del box (T03), no por el instalador real del sistema. */
