@@ -117,6 +117,12 @@ void enableIO(JNIEnv *env, jclass clazz) {
     nativeHook(env);
 }
 
+bool virtual_spoof_enable(bool on);
+
+jboolean setPropertySpoof(JNIEnv *env, jclass clazz, jboolean on) {
+    return virtual_spoof_enable(on == JNI_TRUE) ? JNI_TRUE : JNI_FALSE;
+}
+
 bool disableResourceLoading(JNIEnv *env, jclass clazz) {
     ALOGD("set disableResourceLoading");
     if(!disable_resource_loading()){
@@ -128,6 +134,7 @@ bool disableResourceLoading(JNIEnv *env, jclass clazz) {
 
 static JNINativeMethod gMethods[] = {
         {"disableResourceLoading", "()Z",                         (void *) disableResourceLoading},
+        {"setPropertySpoof", "(Z)Z",                              (void *) setPropertySpoof},
         {"hideXposed", "()V",                                     (void *) hideXposed},
         {"addIORule",  "(Ljava/lang/String;Ljava/lang/String;)V", (void *) addIORule},
         {"enableIO",   "()V",                                     (void *) enableIO},
