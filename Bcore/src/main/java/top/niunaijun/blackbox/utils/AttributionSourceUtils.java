@@ -74,13 +74,36 @@ public class AttributionSourceUtils {
         }
     }
 
+    private static boolean setStateField(Object attributionSource, String name, Object value) {
+        try {
+            java.lang.reflect.Field f = attributionSource.getClass().getDeclaredField("mAttributionSourceState");
+            f.setAccessible(true);
+            Object state = f.get(attributionSource);
+            if (state == null) return false;
+            java.lang.reflect.Field target = state.getClass().getDeclaredField(name);
+            target.setAccessible(true);
+            target.set(state, value);
+            return true;
+        } catch (Throwable t) {
+            return false;
+        }
+    }
+
     public static void fixAttributionSourceUid(Object attributionSource) {
         try {
             if (attributionSource == null) return;
             
             Class<?> attributionSourceClass = attributionSource.getClass();
-            
-            
+
+            // Android 12+: el UID y el paquete viven en mAttributionSourceState, no en campos directos.
+            // Sin esto el provider remoto rechaza la llamada (UID del invitado != UID real del llamante).
+            if (setStateField(attributionSource, "uid", BlackBoxCore.getHostUid())) {
+                setStateField(attributionSource, "packageName", BlackBoxCore.getHostPkg());
+                Slog.d(TAG, "AttributionSource remoto: uid=" + BlackBoxCore.getHostUid()
+                        + " paquete=" + BlackBoxCore.getHostPkg());
+                return;
+            }
+
             String[] uidFieldNames = {"mUid", "uid", "mCallingUid", "callingUid", "mSourceUid", "sourceUid"};
             
             for (String fieldName : uidFieldNames) {
