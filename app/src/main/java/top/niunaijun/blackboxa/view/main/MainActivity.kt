@@ -66,6 +66,8 @@ class MainActivity : LoadingActivity() {
             
             checkStoragePermission()
 
+            updateIoRedirectBanner()
+
             
             if (AppManager.mBlackBoxLoader.useVpnNetwork()) {
                 checkVpnPermission()
@@ -80,6 +82,21 @@ class MainActivity : LoadingActivity() {
             Log.e(TAG, "Critical error in onCreate: ${e.message}")
             
             showErrorDialog("Failed to initialize app: ${e.message}")
+        }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        updateIoRedirectBanner()
+    }
+
+    private fun updateIoRedirectBanner() {
+        try {
+            val healthy = BlackBoxCore.get().isIoRedirectHealthy
+            viewBinding.ioRedirectBanner.visibility =
+                    if (healthy) android.view.View.GONE else android.view.View.VISIBLE
+        } catch (e: Exception) {
+            Log.e(TAG, "Error checking IO redirect state: ${e.message}")
         }
     }
 

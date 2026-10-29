@@ -51,6 +51,7 @@
     <string name="clear_success">Cleared Successfully</string>
     <string name="start_fail">Launched Failed</string>
     <string name="start_in_outside">Start module in outside</string>
+    <string name="io_redirect_warning">File redirection is not active on this Android version. Apps inside the box may write outside their own space.</string>
     <string name="restart_module">Restart app to apply change</string>
     <string name="cannot_create_shortcut">This desktop does not support creating shortcuts</string>
     <string name="uninstall_module_toast">Please uninstall the xposed module in the Module Manager</string>
