@@ -24,6 +24,7 @@ import black.android.app.ContextImpl;
 import black.android.content.pm.BRPackageManager;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.GooglePrivappPermissions;
+import top.niunaijun.blackbox.utils.NearbyPermissions;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.core.env.AppSystemEnv;
 import top.niunaijun.blackbox.fake.FakeCore;
@@ -436,6 +437,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
                 return hostPostNotificationsState();
             }
 
+            if (NearbyPermissions.isNearbyDevices(permission)) {
+                return hostNearbyState(permission);
+            }
+
             if (isNotificationOrXiaomiPermission(permission)) {
                 Slog.d(TAG, "SimpleAudioPermissionHook: Granting notification/Xiaomi permission: " + permission + " to " + packageName);
                 return PackageManager.PERMISSION_GRANTED;
@@ -471,6 +476,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             
             if (isPostNotifications(permission)) {
                 return hostPostNotificationsState();
+            }
+
+            if (NearbyPermissions.isNearbyDevices(permission)) {
+                return hostNearbyState(permission);
             }
 
             if (isNotificationOrXiaomiPermission(permission)) {
@@ -597,6 +606,18 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             return PackageManager.PERMISSION_GRANTED;
         }
         return BlackBoxCore.getContext().checkSelfPermission("android.permission.POST_NOTIFICATIONS");
+    }
+
+    /**
+     * Bluetooth y Wi-Fi cercano (spec 06): el invitado ve la concesion real del host, que es la
+     * identidad con la que el sistema atiende sus llamadas. Antes de la version en la que el
+     * permiso existe no hay nada que pedir y se da por concedido.
+     */
+    private static int hostNearbyState(String permission) {
+        if (Build.VERSION.SDK_INT < NearbyPermissions.sinceSdk(permission)) {
+            return PackageManager.PERMISSION_GRANTED;
+        }
+        return BlackBoxCore.getContext().checkSelfPermission(permission);
     }
 
     private static boolean isNotificationOrXiaomiPermission(String permission) {

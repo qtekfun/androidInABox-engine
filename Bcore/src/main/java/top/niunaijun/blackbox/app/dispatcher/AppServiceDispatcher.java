@@ -16,6 +16,7 @@ import top.niunaijun.blackbox.entity.ServiceRecord;
 import top.niunaijun.blackbox.entity.UnbindRecord;
 import top.niunaijun.blackbox.proxy.record.ProxyPendingRecord;
 import top.niunaijun.blackbox.utils.Slog;
+import top.niunaijun.blackbox.utils.compat.ContextCompat;
 import top.niunaijun.blackbox.proxy.record.ProxyServiceRecord;
 
 import static android.app.Service.START_NOT_STICKY;
@@ -236,6 +237,8 @@ public class AppServiceDispatcher {
         Service service = BlackBoxCore.currentActivityThread().createService(serviceInfo, token);
         if (service == null)
             return null;
+        // Los servicios (p. ej. los de Bluetooth o escucha de notificaciones) tambien llaman con la identidad del host
+        ContextCompat.fix(service);
         record = new ServiceRecord();
         record.setService(service);
         mService.put(new Intent.FilterComparison(intent), record);
