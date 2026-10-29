@@ -11,6 +11,14 @@ public class InstallOption implements Parcelable {
     public static final int FLAG_URI_FILE = 1 << 3;
     /** {@code file} es un directorio de staging con uno o varios APK / bundles. (1 << 2 queda libre.) */
     public static final int FLAG_SPLIT_SET = 1 << 4;
+    /** El paquete ya está en el box: solo se habilita para este perfil, sin copiar ni tocar su APK. */
+    public static final int FLAG_EXISTING_USER = 1 << 5;
+
+    public static InstallOption installExistingForUser() {
+        InstallOption installOption = new InstallOption();
+        installOption.flags = installOption.flags | FLAG_EXISTING_USER;
+        return installOption;
+    }
 
     public int flags = 0;
 

@@ -9,6 +9,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.entity.pm.InstallOption;
 import top.niunaijun.blackbox.entity.pm.InstallResult;
 import top.niunaijun.blackbox.fake.frameworks.BPackageManager;
 import top.niunaijun.blackbox.core.system.user.BUserInfo;
@@ -62,7 +63,8 @@ public class GmsCore {
             // esa copia: en ROM sin GMS el sistema no tiene nada que clonar.
             File boxApk = findBoxApk(packageName);
             if (boxApk != null) {
-                InstallResult fromBox = blackBoxCore.installPackageAsUser(boxApk, userId);
+                InstallResult fromBox = BlackBoxCore.getBPackageManager().installPackageAsUser(
+                        packageName, InstallOption.installExistingForUser(), userId);
                 if (!fromBox.success) {
                     return fromBox;
                 }

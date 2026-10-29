@@ -650,6 +650,36 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         }
     }
 
+    /**
+     * Habilita para otro perfil un paquete que ya está instalado en el box (p. ej. GMS instalado desde
+     * archivos en el perfil 0). No ejecuta CreatePackageExecutor ni CopyExecutor: borrarían y volverían a
+     * copiar el mismo APK sobre sí mismo.
+     */
+    private InstallResult installExistingForUserLocked(String packageName, int userId, InstallResult result) {
+        BPackageSettings ps;
+        synchronized (mPackages) {
+            ps = mPackages.get(packageName);
+        }
+        if (ps == null) {
+            return result.installError("El paquete " + packageName + " no está instalado en el box.");
+        }
+        result.packageName = packageName;
+        if (ps.getInstalled(userId)) {
+            return result;
+        }
+        int i = new top.niunaijun.blackbox.core.system.pm.installer.CreateUserExecutor().exec(ps, ps.installOption, userId);
+        if (i < 0) {
+            return result.installError("install apk error.");
+        }
+        synchronized (mPackages) {
+            ps.setInstalled(true, userId);
+            ps.save();
+        }
+        onPackageInstalled(packageName, userId);
+        Slog.d(TAG, "Paquete existente habilitado para el perfil " + userId + ": " + packageName);
+        return result;
+    }
+
     private InstallResult installPackageAsUserLocked(String file, InstallOption option, int userId) {
         long l = System.currentTimeMillis();
         InstallResult result = new InstallResult();
@@ -660,6 +690,9 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         try {
             if (!sUserManager.exists(userId)) {
                 sUserManager.createUser(userId);
+            }
+            if (option.isFlag(InstallOption.FLAG_EXISTING_USER)) {
+                return installExistingForUserLocked(file, userId, result);
             }
             if (option.isFlag(InstallOption.FLAG_SPLIT_SET)) {
                 stagingDir = new File(file);
