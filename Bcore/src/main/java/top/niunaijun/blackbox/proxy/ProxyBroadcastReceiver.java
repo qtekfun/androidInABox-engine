@@ -13,11 +13,18 @@ import top.niunaijun.blackbox.proxy.record.ProxyBroadcastRecord;
 public class ProxyBroadcastReceiver extends BroadcastReceiver {
     public static final String TAG = "ProxyBroadcastReceiver";
 
+    private static final top.niunaijun.blackbox.proxy.record.BroadcastDedup sDedup =
+            new top.niunaijun.blackbox.proxy.record.BroadcastDedup(128);
+
     @Override
     public void onReceive(Context context, Intent intent) {
         intent.setExtrasClassLoader(context.getClassLoader());
         ProxyBroadcastRecord record = ProxyBroadcastRecord.create(intent);
         if (record.mIntent == null) {
+            return;
+        }
+        if (record.mId != 0 && !sDedup.firstTime(record.mId)) {
+            // Copia del mismo broadcast que ya reparti otro receptor del host
             return;
         }
         PendingResult pendingResult = goAsync();
