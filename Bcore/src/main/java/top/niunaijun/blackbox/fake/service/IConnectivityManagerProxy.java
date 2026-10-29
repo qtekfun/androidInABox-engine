@@ -15,6 +15,7 @@ import java.util.List;
 
 import black.android.net.BRIConnectivityManagerStub;
 import black.android.os.BRServiceManager;
+import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.ScanClass;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
@@ -435,6 +436,34 @@ public class IConnectivityManagerProxy extends BinderInvocationStub {
     }
 
     
+    /**
+     * Las variantes *ForUid son API privilegiadas (exigen NETWORK_STACK) y el host no puede usarlas.
+     * Se responden con las API públicas equivalentes del host, que da la red a todas las apps del box.
+     */
+    @ProxyMethod("getNetworkInfoForUid")
+    public static class GetNetworkInfoForUid extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            android.net.ConnectivityManager cm = hostConnectivity();
+            android.net.Network network = args != null && args.length > 0 && args[0] instanceof android.net.Network
+                    ? (android.net.Network) args[0] : cm.getActiveNetwork();
+            return network != null ? cm.getNetworkInfo(network) : null;
+        }
+    }
+
+    @ProxyMethod("getActiveNetworkForUid")
+    public static class GetActiveNetworkForUid extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return hostConnectivity().getActiveNetwork();
+        }
+    }
+
+    private static android.net.ConnectivityManager hostConnectivity() {
+        return (android.net.ConnectivityManager) BlackBoxCore.getContext()
+                .getSystemService(android.content.Context.CONNECTIVITY_SERVICE);
+    }
+
     @ProxyMethod("getLinkProperties")
     public static class GetLinkProperties extends MethodHook {
         @Override
@@ -603,7 +632,7 @@ public class IConnectivityManagerProxy extends BinderInvocationStub {
             Slog.d(TAG, "Intercepting getActiveNetworkInfoForUid for internet access");
             try {
                 
-                Object result = method.invoke(who, args);
+                Object result = hostConnectivity().getActiveNetworkInfo();
                 if (result != null) {
                     
                     try {
