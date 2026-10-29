@@ -24,6 +24,11 @@ public class ProxyManifest {
         return String.format(Locale.CHINA, "top.niunaijun.blackbox.proxy.ProxyPendingActivity$P%d", index);
     }
 
+    /** Un solo receptor, en :black, para los PendingIntent de broadcast y servicio. */
+    public static String getProxyPendingReceiver() {
+        return "top.niunaijun.blackbox.proxy.ProxyPendingReceiver";
+    }
+
     public static String getProxyActivity(int index) {
         return String.format(Locale.CHINA, "top.niunaijun.blackbox.proxy.ProxyActivity$P%d", index);
     }

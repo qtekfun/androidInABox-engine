@@ -514,6 +514,13 @@
             </intent-filter>
         </receiver>
 
+        <!-- Destino de los PendingIntent de broadcast y servicio del invitado; solo lo dispara el sistema. -->
+        <receiver
+            android:name=".proxy.ProxyPendingReceiver"
+            android:enabled="true"
+            android:exported="false"
+            android:process="@string/black_box_service_name" />
+
         <service
             android:name="top.niunaijun.blackbox.core.system.DaemonService"
             android:exported="false"

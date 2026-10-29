@@ -506,18 +506,30 @@ public class IActivityManagerProxy extends ClassInvocationStub {
             int requestCode = intentsIndex > 0 && args[intentsIndex - 1] instanceof Integer ? (Integer) args[intentsIndex - 1] : 0;
             MethodParameterUtils.replaceFirstAppPkg(args);
 
-            for (int i = 0; i < intents.length; i++) {
-                Intent intent = intents[i];
-                switch (type) {
-                    case ActivityManagerCompat.INTENT_SENDER_ACTIVITY:
-                        Intent shadow = new Intent();
+            int kind = pendingKind(type);
+            if (kind >= 0) {
+                for (int i = 0; i < intents.length; i++) {
+                    Intent intent = intents[i];
+                    Intent shadow = new Intent();
+                    if (kind == ProxyPendingRecord.KIND_ACTIVITY) {
                         shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyPendingActivity(BActivityThread.getAppPid())));
-                        shadow.setData(ProxyPendingRecord.uniqueUri(BActivityThread.getUserId(), BActivityThread.getAppPackageName(),
-                                ProxyPendingRecord.KIND_ACTIVITY, requestCode, intent, i));
-                        ProxyPendingRecord.saveStub(shadow, intent, BActivityThread.getUserId(),
-                                BActivityThread.getAppPackageName(), ProxyPendingRecord.KIND_ACTIVITY);
-                        intents[i] = shadow;
-                        break;
+                    } else {
+                        // Siempre un componente explicito del host: el intent original no sale nunca hacia el sistema.
+                        shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyPendingReceiver()));
+                    }
+                    shadow.setData(ProxyPendingRecord.uniqueUri(BActivityThread.getUserId(), BActivityThread.getAppPackageName(),
+                            kind, requestCode, intent, i));
+                    ProxyPendingRecord.saveStub(shadow, intent, BActivityThread.getUserId(),
+                            BActivityThread.getAppPackageName(), kind);
+                    intents[i] = shadow;
+                }
+                if (kind != ProxyPendingRecord.KIND_ACTIVITY) {
+                    // resolvedTypes describe el intent original, no el stub
+                    for (int i = 0; i < args.length; i++) {
+                        if (args[i] instanceof String[]) {
+                            args[i] = null;
+                        }
+                    }
                 }
             }
             IInterface invoke = (IInterface) method.invoke(who, args);
@@ -529,6 +541,22 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                 BlackBoxCore.getBActivityManager().getIntentSender(invoke.asBinder(), packagesForUid[0], BActivityThread.getCallingBUid());
             }
             return invoke;
+        }
+
+        /** Tipo de ProxyPendingRecord para un tipo de IntentSender, o -1 si no se reescribe. */
+        private static int pendingKind(int type) {
+            switch (type) {
+                case ActivityManagerCompat.INTENT_SENDER_ACTIVITY:
+                    return ProxyPendingRecord.KIND_ACTIVITY;
+                case ActivityManagerCompat.INTENT_SENDER_BROADCAST:
+                    return ProxyPendingRecord.KIND_BROADCAST;
+                case ActivityManagerCompat.INTENT_SENDER_SERVICE:
+                    return ProxyPendingRecord.KIND_SERVICE;
+                case ActivityManagerCompat.INTENT_SENDER_FOREGROUND_SERVICE:
+                    return ProxyPendingRecord.KIND_FOREGROUND_SERVICE;
+                default:
+                    return -1;
+            }
         }
 
         private int getIntentsIndex(Object[] args) {
