@@ -500,7 +500,10 @@ public class IActivityManagerProxy extends ClassInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             int type = (int) args[0];
-            Intent[] intents = (Intent[]) args[getIntentsIndex(args)];
+            int intentsIndex = getIntentsIndex(args);
+            Intent[] intents = (Intent[]) args[intentsIndex];
+            // requestCode va justo antes de intents en todas las firmas (con y sin featureId)
+            int requestCode = intentsIndex > 0 && args[intentsIndex - 1] instanceof Integer ? (Integer) args[intentsIndex - 1] : 0;
             MethodParameterUtils.replaceFirstAppPkg(args);
 
             for (int i = 0; i < intents.length; i++) {
@@ -509,7 +512,10 @@ public class IActivityManagerProxy extends ClassInvocationStub {
                     case ActivityManagerCompat.INTENT_SENDER_ACTIVITY:
                         Intent shadow = new Intent();
                         shadow.setComponent(new ComponentName(BlackBoxCore.getHostPkg(), ProxyManifest.getProxyPendingActivity(BActivityThread.getAppPid())));
-                        ProxyPendingRecord.saveStub(shadow, intent, BActivityThread.getUserId());
+                        shadow.setData(ProxyPendingRecord.uniqueUri(BActivityThread.getUserId(), BActivityThread.getAppPackageName(),
+                                ProxyPendingRecord.KIND_ACTIVITY, requestCode, intent, i));
+                        ProxyPendingRecord.saveStub(shadow, intent, BActivityThread.getUserId(),
+                                BActivityThread.getAppPackageName(), ProxyPendingRecord.KIND_ACTIVITY);
                         intents[i] = shadow;
                         break;
                 }

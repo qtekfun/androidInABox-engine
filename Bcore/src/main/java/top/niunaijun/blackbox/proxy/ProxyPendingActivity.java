@@ -21,8 +21,10 @@ public class ProxyPendingActivity extends Activity {
         finish();
         ProxyPendingRecord pendingActivityRecord = ProxyPendingRecord.create(getIntent());
         Slog.d(TAG, "ProxyPendingActivity: " + pendingActivityRecord);
-        if (pendingActivityRecord.mTarget == null)
+        if (pendingActivityRecord.mTarget == null) {
+            Slog.w(TAG, "PendingIntent de actividad descartado: registro ilegible");
             return;
+        }
         pendingActivityRecord.mTarget.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
         pendingActivityRecord.mTarget.setExtrasClassLoader(BlackBoxCore.getApplication().getClassLoader());
         startActivity(pendingActivityRecord.mTarget);
