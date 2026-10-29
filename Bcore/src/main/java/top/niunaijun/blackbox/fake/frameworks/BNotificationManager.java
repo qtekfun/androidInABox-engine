@@ -1,5 +1,6 @@
 package top.niunaijun.blackbox.fake.frameworks;
 
+import android.app.Application;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
@@ -25,6 +26,20 @@ public class BNotificationManager extends BlackManager<IBNotificationManagerServ
         return ServiceManager.NOTIFICATION_MANAGER;
     }
 
+    /** Etiqueta de la app invitada (el host no puede leerla del APK virtual). */
+    private static String appLabel() {
+        String label = BActivityThread.getAppPackageName();
+        try {
+            Application app = BActivityThread.getApplication();
+            CharSequence l = app.getPackageManager().getApplicationLabel(app.getApplicationInfo());
+            if (l != null && l.length() > 0) {
+                label = l.toString();
+            }
+        } catch (Throwable ignored) {
+        }
+        return label;
+    }
+
     public NotificationChannel getNotificationChannel(String channelId) {
         try {
             return getService().getNotificationChannel(channelId, BActivityThread.getUserId());
@@ -45,7 +60,7 @@ public class BNotificationManager extends BlackManager<IBNotificationManagerServ
 
     public void createNotificationChannel(NotificationChannel notificationChannel) {
         try {
-            getService().createNotificationChannel(notificationChannel, BActivityThread.getUserId());
+            getService().createNotificationChannel(notificationChannel, BActivityThread.getUserId(), appLabel());
         } catch (RemoteException e) {
             e.printStackTrace();
         }
@@ -61,7 +76,7 @@ public class BNotificationManager extends BlackManager<IBNotificationManagerServ
 
     public void createNotificationChannelGroup(NotificationChannelGroup notificationChannelGroup) {
         try {
-            getService().createNotificationChannelGroup(notificationChannelGroup, BActivityThread.getUserId());
+            getService().createNotificationChannelGroup(notificationChannelGroup, BActivityThread.getUserId(), appLabel());
         } catch (RemoteException e) {
             e.printStackTrace();
         }

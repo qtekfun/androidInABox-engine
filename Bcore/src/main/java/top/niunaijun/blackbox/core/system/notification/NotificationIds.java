@@ -31,10 +31,22 @@ public final class NotificationIds {
         return realId != null && realId.startsWith(prefix(userId, packageName));
     }
 
-    /** True si es de ese paquete en cualquier perfil. */
-    public static boolean isOfPackage(String realId, String packageName) {
-        String[] p = split(realId);
-        return p != null && p[1].equals(packageName);
+    /**
+     * True si el id real (tag, canal, grupo de canales, incluido el de paquete sin ':' final) es
+     * de ese paquete y perfil; {@code userId == -1} (USER_ALL) acepta cualquier perfil.
+     */
+    public static boolean matches(String realId, int userId, String packageName) {
+        if (realId == null || !realId.startsWith(PREFIX)) {
+            return false;
+        }
+        String[] p = realId.split(":", 4);
+        if (p.length < 3 || !p[2].equals(packageName)) {
+            return false;
+        }
+        if (userId == -1) {
+            return true;
+        }
+        return p[1].equals(Integer.toString(userId));
     }
 
     /** Devuelve el id del invitado, o null si {@code realId} no es de este espacio. */

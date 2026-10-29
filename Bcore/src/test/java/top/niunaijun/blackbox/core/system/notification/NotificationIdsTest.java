@@ -48,4 +48,14 @@ public class NotificationIdsTest {
         assertEquals("bb:3:com.a", NotificationIds.packageGroup(3, "com.a"));
         assertNull(NotificationIds.split(NotificationIds.packageGroup(3, "com.a")));
     }
+
+    @Test
+    public void matchesCoversGroupsAndAllUsers() {
+        assertTrue(NotificationIds.matches("bb:1:com.a", 1, "com.a"));
+        assertTrue(NotificationIds.matches("bb:1:com.a:x:y", 1, "com.a"));
+        assertTrue(NotificationIds.matches("bb:7:com.a:x", -1, "com.a"));
+        assertFalse(NotificationIds.matches("bb:7:com.a:x", 1, "com.a"));
+        assertFalse(NotificationIds.matches("bb:1:com.ab:x", 1, "com.a"));
+        assertFalse(NotificationIds.matches("default", -1, "com.a"));
+    }
 }

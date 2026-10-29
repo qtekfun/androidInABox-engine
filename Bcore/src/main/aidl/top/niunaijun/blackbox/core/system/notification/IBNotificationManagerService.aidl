@@ -14,11 +14,11 @@ interface IBNotificationManagerService {
 
     List<NotificationChannelGroup> getNotificationChannelGroups(String packageName, int userId);
 
-    void createNotificationChannel(in NotificationChannel notificationChannel, int userId);
+    void createNotificationChannel(in NotificationChannel notificationChannel, int userId, String appLabel);
 
     void deleteNotificationChannel(String channelId, int userId);
 
-    void createNotificationChannelGroup(in NotificationChannelGroup notificationChannelGroup, int userId);
+    void createNotificationChannelGroup(in NotificationChannelGroup notificationChannelGroup, int userId, String appLabel);
 
     void deleteNotificationChannelGroup(String groupId, int userId);
 
