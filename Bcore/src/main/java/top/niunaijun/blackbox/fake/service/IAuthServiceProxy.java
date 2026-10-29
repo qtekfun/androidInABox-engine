@@ -94,4 +94,32 @@ public class IAuthServiceProxy extends BinderInvocationStub {
             return false;
         }
     }
+
+    /**
+     * El sistema real rechaza authenticate() del invitado (paquete distinto del UID). Si solo se ignora,
+     * la app espera para siempre al callback (GMS se queda en "Comprobando información"). Se responde por
+     * el IBiometricServiceReceiver con "no hay biometría ni credencial", y la app sigue su flujo alternativo.
+     */
+    @ProxyMethod("authenticate")
+    public static class Authenticate extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            if (args != null) {
+                for (Object arg : args) {
+                    if (arg == null) continue;
+                    for (Class<?> itf : arg.getClass().getInterfaces()) {
+                        if (itf.getName().endsWith("IBiometricServiceReceiver")) {
+                            try {
+                                // onError(modality, error, vendorCode): 14 = BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL
+                                arg.getClass().getMethod("onError", int.class, int.class, int.class).invoke(arg, 0, 14, 0);
+                            } catch (Throwable ignored) {
+                            }
+                        }
+                    }
+                }
+            }
+            Class<?> rt = method.getReturnType();
+            return rt == long.class ? 0L : (rt == int.class ? 0 : null);
+        }
+    }
 }
