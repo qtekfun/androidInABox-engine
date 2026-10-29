@@ -22,6 +22,7 @@ import java.util.Set;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.IBActivityThread;
 import top.niunaijun.blackbox.core.env.BEnvironment;
+import top.niunaijun.blackbox.core.system.keepalive.KeepAliveManager;
 import top.niunaijun.blackbox.core.system.pm.BPackageManagerService;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
 import top.niunaijun.blackbox.entity.AppConfig;
@@ -93,6 +94,7 @@ public class BProcessManagerService implements ISystemService {
                 app = null;
             } else {
                 app.pid = getPid(BlackBoxCore.getContext(), ProxyManifest.getProcessName(app.bpid));
+                KeepAliveManager.get().onProcessStarted(app);
             }
         }
         return app;
@@ -202,6 +204,7 @@ public class BProcessManagerService implements ISystemService {
 
             removeProc(record);
         }
+        KeepAliveManager.get().onProcessDied(record, record.killedByUser);
     }
 
     public ProcessRecord findProcessRecord(String packageName, String processName, int userId) {
@@ -225,6 +228,7 @@ public class BProcessManagerService implements ISystemService {
                     if (appId == appId1) {
                         mProcessMap.remove(processRecord.buid);
                         tmp.remove(processRecord);
+                        processRecord.killedByUser = true;
                         processRecord.kill();
                     }
                 }
@@ -241,6 +245,7 @@ public class BProcessManagerService implements ISystemService {
             if (process == null)
                 return;
             for (ProcessRecord value : process.values()) {
+                value.killedByUser = true;
                 value.kill();
                 mPidsSelfLocked.remove(value);
             }

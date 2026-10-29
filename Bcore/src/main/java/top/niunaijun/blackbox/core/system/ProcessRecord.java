@@ -23,6 +23,8 @@ public class ProcessRecord extends Binder {
     public int bpid;
     public int callingBUid;
     public int userId;
+    /** Matado a proposito (parar la app): la politica "mantener viva" no lo reinicia. */
+    public volatile boolean killedByUser;
 
     public ConditionVariable initLock = new ConditionVariable();
 

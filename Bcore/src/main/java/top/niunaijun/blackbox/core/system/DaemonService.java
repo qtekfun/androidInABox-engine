@@ -4,7 +4,9 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.app.Service;
+import android.app.PendingIntent;
 import android.content.Context;
+import android.content.pm.ServiceInfo;
 import android.content.Intent;
 import android.os.Build;
 import android.os.IBinder;
@@ -13,15 +15,16 @@ import android.util.Log;
 import androidx.core.app.NotificationCompat;
 
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.R;
+import top.niunaijun.blackbox.core.system.keepalive.KeepAliveManager;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
 public class DaemonService extends Service {
     public static final String TAG = "DaemonService";
     private static final int NOTIFY_ID = BlackBoxCore.getHostPkg().hashCode();
-    private static final String CHANNEL_ID = "blackbox_daemon_channel";
-    private static final String CHANNEL_NAME = "BlackBox Daemon Service";
-    private static final String CHANNEL_DESCRIPTION = "Keeps BlackBox core services running";
+    /** Canal del servicio central (spec 04, R04.1): importancia baja, sin sonido. */
+    public static final String CHANNEL_ID = "bb_core_service";
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -37,6 +40,8 @@ public class DaemonService extends Service {
         if (BuildCompat.isOreo()) {
             createNotificationChannel();
         }
+        // Cumple la promesa de startForegroundService cuanto antes
+        startForegroundService();
     }
 
     @Override
@@ -45,16 +50,13 @@ public class DaemonService extends Service {
         
         try {
             
-            Intent innerIntent = new Intent(this, DaemonInnerService.class);
-            startService(innerIntent);
-            
-            
-            if (BuildCompat.isOreo()) {
-                if (!startForegroundService()) {
-                    Log.w(TAG, "Failed to start foreground service, falling back to regular service");
-                    return START_STICKY;
-                }
+            // La notificacion del servicio central no se cancela ni se oculta (R04.3)
+            if (BuildCompat.isOreo() && !startForegroundService()) {
+                Log.w(TAG, "Failed to start foreground service, falling back to regular service");
+                return START_STICKY;
             }
+            // Tras arrancar o reiniciarse :black se restauran los procesos de las apps marcadas (R04.8)
+            KeepAliveManager.get().restoreMarked();
             
             Log.d(TAG, "DaemonService started successfully");
             return START_STICKY;
@@ -78,10 +80,10 @@ public class DaemonService extends Service {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
-                    CHANNEL_NAME,
+                    getString(R.string.bb_core_channel_name),
                     NotificationManager.IMPORTANCE_LOW
                 );
-                channel.setDescription(CHANNEL_DESCRIPTION);
+                channel.setDescription(getString(R.string.bb_core_channel_desc));
                 channel.setShowBadge(false);
                 channel.setSound(null, null);
                 channel.enableVibration(false);
@@ -102,8 +104,12 @@ public class DaemonService extends Service {
         try {
             Notification notification = createNotification();
             if (notification != null) {
-                startForeground(NOTIFY_ID, notification);
-                Log.d(TAG, "Foreground service started successfully");
+                if (Build.VERSION.SDK_INT >= 34) {
+                    startForeground(NOTIFY_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+                } else {
+                    startForeground(NOTIFY_ID, notification);
+                }
+                Log.i(TAG, "Servicio central en primer plano (canal " + CHANNEL_ID + ", id " + NOTIFY_ID + ")");
                 return true;
             } else {
                 Log.e(TAG, "Failed to create notification");
@@ -116,11 +122,29 @@ public class DaemonService extends Service {
     }
 
     
+    /** Toque en la notificacion: abre el host. */
+    private PendingIntent contentIntent() {
+        try {
+            Intent launch = getPackageManager().getLaunchIntentForPackage(getPackageName());
+            if (launch == null) {
+                return null;
+            }
+            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
+            if (Build.VERSION.SDK_INT >= 23) {
+                flags |= PendingIntent.FLAG_IMMUTABLE;
+            }
+            return PendingIntent.getActivity(this, 0, launch, flags);
+        } catch (Throwable e) {
+            return null;
+        }
+    }
+
     private Notification createNotification() {
         try {
             NotificationCompat.Builder builder = new NotificationCompat.Builder(this, CHANNEL_ID)
-                .setContentTitle("BlackBox Core")
-                .setContentText("Core services are running")
+                .setContentTitle(getString(R.string.bb_core_title))
+                .setContentText(getString(R.string.bb_core_text))
+                .setContentIntent(contentIntent())
                 .setSmallIcon(android.R.drawable.ic_dialog_info)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -145,23 +169,9 @@ public class DaemonService extends Service {
         public int onStartCommand(Intent intent, int flags, int startId) {
             Log.i(TAG, "DaemonInnerService -> onStartCommand");
             
-            try {
-                
-                NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
-                if (nm != null) {
-                    nm.cancel(NOTIFY_ID);
-                    Log.d(TAG, "Notification cancelled successfully");
-                }
-                
-                
-                stopSelf();
-                return START_NOT_STICKY;
-                
-            } catch (Exception e) {
-                Log.e(TAG, "Error in DaemonInnerService: " + e.getMessage(), e);
-                stopSelf();
-                return START_NOT_STICKY;
-            }
+            // Inocuo: ya no cancela la notificacion del servicio central (R04.3)
+            stopSelf();
+            return START_NOT_STICKY;
         }
 
         @Override

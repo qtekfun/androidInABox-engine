@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="bb_core_channel_name">Estado del motor</string>
+    <string name="bb_core_channel_desc">Mantiene el motor activo para que las apps reciban notificaciones</string>
+    <string name="bb_core_title">Motor activo</string>
+    <string name="bb_core_text">Las apps del box pueden recibir notificaciones</string>
+</resources>

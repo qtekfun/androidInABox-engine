@@ -10,6 +10,7 @@ import androidx.core.app.NotificationCompat;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.dispatcher.AppServiceDispatcher;
+import top.niunaijun.blackbox.core.system.keepalive.KeepAliveManager;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
 
 
@@ -19,6 +20,10 @@ public class ProxyService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
+        // Bind de prioridad desde :black (KeepAliveManager): no hay servicio invitado detras
+        if (intent != null && KeepAliveManager.ACTION_KEEPALIVE.equals(intent.getAction())) {
+            return null;
+        }
         return AppServiceDispatcher.get().onBind(intent);
     }
 

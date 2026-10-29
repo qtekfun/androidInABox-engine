@@ -2,4 +2,8 @@
 <resources>
     <string name="black_box_service_name">:black</string>
     <string name="app_icon">default icon</string>
+    <string name="bb_core_channel_name">Engine status</string>
+    <string name="bb_core_channel_desc">Keeps the engine running so apps can receive notifications</string>
+    <string name="bb_core_title">Engine active</string>
+    <string name="bb_core_text">Apps in the box can receive notifications</string>
 </resources>

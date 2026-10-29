@@ -10,6 +10,7 @@ import android.os.IBinder;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
+import top.niunaijun.blackbox.core.system.keepalive.KeepAliveManager;
 import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.BundleCompat;
 
@@ -59,6 +60,15 @@ public class SystemCallProvider extends ContentProvider {
                     }
                 }
                 return bundle;
+            }
+            if ("keepalive_set".equals(method) && extras != null) {
+                KeepAliveManager.get().setKeepAlive(arg, extras.getInt("userId", 0), extras.getBoolean("enabled", true));
+                return new Bundle();
+            }
+            if ("keepalive_get".equals(method)) {
+                Bundle b = new Bundle();
+                b.putStringArrayList("keys", new java.util.ArrayList<>(KeepAliveManager.get().getKeepAlive()));
+                return b;
             }
             return super.call(method, arg, extras);
         } catch (Exception e) {
