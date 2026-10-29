@@ -122,6 +122,13 @@ public class IOCore {
             rule.put(String.format("/data/user/%d/%s", systemUserId, packageName), packageInfo.dataDir);
 
             
+            // GMS guarda checkin_id_token en /data/misc_ce|de/<usuario>/checkin, inaccesible para apps normales
+            for (String misc : new String[]{"misc_ce", "misc_de"}) {
+                File checkinDir = new File(virtualDataDir, misc + "_checkin");
+                FileUtils.mkdirs(checkinDir.getAbsolutePath());
+                rule.put(String.format("/data/%s/%d/checkin", misc, systemUserId), checkinDir.getAbsolutePath());
+            }
+
             File profilesRoot = new File(BEnvironment.getVirtualRoot(), "profiles");
             FileUtils.mkdirs(profilesRoot.getAbsolutePath());
             
