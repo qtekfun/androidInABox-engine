@@ -3,6 +3,8 @@ package top.niunaijun.blackbox.entity.pm;
 import android.os.Parcel;
 import android.os.Parcelable;
 
+import top.niunaijun.blackbox.core.system.pm.PersistFormat;
+
 
 public class InstallOption implements Parcelable {
     public static final int FLAG_SYSTEM = 1;
@@ -68,6 +70,8 @@ public class InstallOption implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
+        // Nuevos campos solo al final y protegidos por version (ver PersistFormat).
+        PersistFormat.writeVersion(dest);
         dest.writeInt(this.flags);
     }
 
@@ -75,6 +79,7 @@ public class InstallOption implements Parcelable {
     }
 
     protected InstallOption(Parcel in) {
+        int version = PersistFormat.readVersion(in);
         this.flags = in.readInt();
     }
 

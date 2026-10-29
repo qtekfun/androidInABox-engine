@@ -114,9 +114,14 @@ public class BPackageSettings implements Parcelable {
         return 0;
     }
 
+    /**
+     * Formato v1: cabecera, appId, installOption, estados de usuario y, AL FINAL, el BPackage.
+     * Así, si el BPackage ya no se puede leer, el resto de datos sigue recuperable.
+     * Nuevos campos solo al final y protegidos por version (ver PersistFormat).
+     */
     @Override
     public void writeToParcel(Parcel dest, int flags) {
-        dest.writeParcelable(this.pkg, flags);
+        PersistFormat.writeVersion(dest);
         dest.writeInt(this.appId);
         dest.writeParcelable(this.installOption, flags);
         dest.writeInt(this.userState.size());
@@ -124,10 +129,53 @@ public class BPackageSettings implements Parcelable {
             dest.writeValue(entry.getKey());
             dest.writeParcelable(entry.getValue(), flags);
         }
+        dest.writeParcelable(this.pkg, flags);
     }
 
+    /** Error al leer el BPackage (si es null, se leyó entero). Solo con {@link #readLenient}. */
+    public transient Throwable pkgError;
+    /** Versión del formato leído. */
+    public transient int formatVersion = PersistFormat.VERSION_ACTUAL;
+
     protected BPackageSettings(Parcel in) {
-        this.pkg = in.readParcelable(BPackage.class.getClassLoader());
+        readFrom(in, false);
+    }
+
+    /**
+     * Lee lo que se pueda: si el BPackage falla, devuelve el resto de datos con {@code pkg == null}
+     * y {@link #pkgError} relleno. En formato legacy (BPackage primero) no se recupera nada más.
+     */
+    public static BPackageSettings readLenient(Parcel in) {
+        BPackageSettings ps = new BPackageSettings();
+        ps.readFrom(in, true);
+        return ps;
+    }
+
+    private void readFrom(Parcel in, boolean lenient) {
+        int version = PersistFormat.readVersion(in);
+        this.formatVersion = version;
+        if (version == PersistFormat.VERSION_LEGACY) {
+            try {
+                this.pkg = in.readParcelable(BPackage.class.getClassLoader());
+                readRest(in);
+            } catch (Throwable t) {
+                if (!lenient) throw t;
+                this.pkg = null;
+                this.pkgError = t;
+            }
+            return;
+        }
+        readRest(in);
+        try {
+            this.pkg = in.readParcelable(BPackage.class.getClassLoader());
+        } catch (Throwable t) {
+            if (!lenient) throw t;
+            this.pkg = null;
+            this.pkgError = t;
+        }
+    }
+
+    private void readRest(Parcel in) {
         this.appId = in.readInt();
         this.installOption = in.readParcelable(InstallOption.class.getClassLoader());
         int userStateSize = in.readInt();

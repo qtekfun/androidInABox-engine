@@ -199,52 +199,182 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         }
     }
 
+    /**
+     * Carga un paquete persistido. Si los metadatos no se pueden leer (p. ej. cambió el formato
+     * del parcel) NUNCA se borra nada: se reconstruyen desde el APK instalado. Solo se descarta
+     * el paquete si su APK realmente no existe.
+     */
     private void updatePackageLP(File app) {
         String packageName = app.getName();
-        Parcel packageSettingsIn = Parcel.obtain();
-        File packageConf = BEnvironment.getPackageConf(packageName);
+        BPackageSettings partial = null;
+        Throwable error = null;
+        Parcel in = Parcel.obtain();
         try {
-            byte[] bPackageSettingsBytes = FileUtils.toByteArray(packageConf);
-
-            packageSettingsIn.unmarshall(bPackageSettingsBytes, 0, bPackageSettingsBytes.length);
-            packageSettingsIn.setDataPosition(0);
-
-            BPackageSettings bPackageSettings = new BPackageSettings(packageSettingsIn);
-            bPackageSettings.pkg.mExtras = bPackageSettings;
-            SplitsConf splits = SplitsConf.read(BEnvironment.getSplitsConf(packageName), app);
-            if (!splits.names.isEmpty()) {
-                bPackageSettings.pkg.splitNames = splits.names;
-                bPackageSettings.pkg.splitCodePaths = splits.codePaths;
+            byte[] bytes = FileUtils.toByteArray(BEnvironment.getPackageConf(packageName));
+            in.unmarshall(bytes, 0, bytes.length);
+            in.setDataPosition(0);
+            partial = BPackageSettings.readLenient(in);
+            if (partial.pkg == null) {
+                error = partial.pkgError != null ? partial.pkgError : new IllegalStateException("BPackage nulo");
+            } else if (partial.pkg.packageName == null || partial.pkg.baseCodePath == null) {
+                error = new IllegalStateException("BPackage incompleto");
+                partial.pkg = null;
             }
-            if (bPackageSettings.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {
-                PackageInfo packageInfo = BlackBoxCore.getPackageManager().getPackageInfo(packageName, PackageManager.GET_META_DATA);
-                String currPackageSourcePath = packageInfo.applicationInfo.sourceDir;
-                if (!currPackageSourcePath.equals(bPackageSettings.pkg.baseCodePath)
-                        || PackageManagerCompat.hostSplitsChanged(packageInfo.applicationInfo, bPackageSettings.pkg.applicationInfo)) {
-                    
-                    BProcessManagerService.get().killAllByPackageName(bPackageSettings.pkg.packageName);
-                    BPackageSettings newPkg = reInstallBySystem(packageInfo, bPackageSettings.installOption);
-                    bPackageSettings.pkg = newPkg.pkg;
-                } else {
-                    PackageManagerCompat.adoptHostSplits(bPackageSettings.pkg, packageInfo.applicationInfo);
-                }
-            } else {
-                bPackageSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(bPackageSettings.pkg, 0, BPackageUserState.create(), 0);
-            }
-            bPackageSettings.save();
-            mPackages.put(bPackageSettings.pkg.packageName, bPackageSettings);
-            Slog.d(TAG, "loaded Package: " + packageName);
         } catch (Throwable e) {
-            e.printStackTrace();
-            
+            error = e;
+        } finally {
+            in.recycle();
+        }
+
+        if (error == null) {
+            try {
+                finishLoadPackageLP(app, partial);
+                return;
+            } catch (Throwable e) {
+                error = e;
+            }
+        }
+
+        Slog.e(TAG, "PERSIST_READ_FAIL " + packageName + ": metadatos ilegibles, se conservan los ficheros e intento recuperar desde el APK", error);
+        try {
+            BPackageSettings recovered = recoverPackageLP(app, partial);
+            finishLoadPackageLP(app, recovered);
+            Slog.w(TAG, "PERSIST_RECOVERED " + packageName + ": reconstruido desde el APK instalado");
+            return;
+        } catch (Throwable e) {
+            Slog.e(TAG, "PERSIST_RECOVER_FAIL " + packageName, e);
+        }
+
+        if (!hasInstalledApk(app, partial)) {
+            Slog.e(TAG, "PERSIST_APK_MISSING " + packageName + ": el APK no existe, se descarta el paquete");
             FileUtils.deleteDir(app);
             removePackage(packageName);
             BProcessManagerService.get().killAllByPackageName(packageName);
             BPackageManagerService.get().onPackageUninstalled(packageName, true, BUserHandle.USER_ALL);
-            Slog.d(TAG, "bad Package: " + packageName);
-        } finally {
-            packageSettingsIn.recycle();
+        } else {
+            // El APK existe pero no se pudo cargar: no se toca nada; se reintentará en el próximo arranque.
+            Slog.e(TAG, "PERSIST_KEPT " + packageName + ": no cargado, ficheros y datos intactos");
         }
+    }
+
+    private void finishLoadPackageLP(File app, BPackageSettings bPackageSettings) throws Exception {
+        String packageName = app.getName();
+        bPackageSettings.pkg.mExtras = bPackageSettings;
+        SplitsConf splits = SplitsConf.read(BEnvironment.getSplitsConf(packageName), app);
+        if (!splits.names.isEmpty()) {
+            bPackageSettings.pkg.splitNames = splits.names;
+            bPackageSettings.pkg.splitCodePaths = splits.codePaths;
+        }
+        if (bPackageSettings.installOption != null && bPackageSettings.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {
+            PackageInfo packageInfo = BlackBoxCore.getPackageManager().getPackageInfo(packageName, PackageManager.GET_META_DATA);
+            String currPackageSourcePath = packageInfo.applicationInfo.sourceDir;
+            if (!currPackageSourcePath.equals(bPackageSettings.pkg.baseCodePath)
+                    || PackageManagerCompat.hostSplitsChanged(packageInfo.applicationInfo, bPackageSettings.pkg.applicationInfo)) {
+
+                BProcessManagerService.get().killAllByPackageName(bPackageSettings.pkg.packageName);
+                BPackageSettings newPkg = reInstallBySystem(packageInfo, bPackageSettings.installOption);
+                bPackageSettings.pkg = newPkg.pkg;
+            } else {
+                PackageManagerCompat.adoptHostSplits(bPackageSettings.pkg, packageInfo.applicationInfo);
+            }
+        } else {
+            bPackageSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(bPackageSettings.pkg, 0, BPackageUserState.create(), 0);
+        }
+        bPackageSettings.save();
+        mPackages.put(bPackageSettings.pkg.packageName, bPackageSettings);
+        Slog.d(TAG, "loaded Package: " + packageName);
+    }
+
+    private boolean isSystemOption(BPackageSettings partial) {
+        return partial != null && partial.installOption != null
+                && partial.installOption.isFlag(InstallOption.FLAG_SYSTEM);
+    }
+
+    private PackageInfo hostPackageInfo(String packageName) {
+        try {
+            return BlackBoxCore.getPackageManager().getPackageInfo(packageName, 0);
+        } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    /** Ruta del APK base: el del box (base.apk) o, si es un paquete del host, el del host. */
+    private String findBaseApk(File app, BPackageSettings partial) {
+        File base = BEnvironment.getBaseApkDir(app.getName());
+        if (!isSystemOption(partial) && base.isFile()) {
+            return base.getAbsolutePath();
+        }
+        PackageInfo host = hostPackageInfo(app.getName());
+        if (host != null && host.applicationInfo != null && host.applicationInfo.sourceDir != null
+                && new File(host.applicationInfo.sourceDir).isFile()
+                && (isSystemOption(partial) || !base.isFile())) {
+            return host.applicationInfo.sourceDir;
+        }
+        return base.isFile() ? base.getAbsolutePath() : null;
+    }
+
+    private boolean hasInstalledApk(File app, BPackageSettings partial) {
+        return findBaseApk(app, partial) != null;
+    }
+
+    /**
+     * Reconstruye el BPackage reparseando base.apk (y los splits de splits.conf), conservando
+     * las banderas de instalación y el estado por usuario si eran legibles; si no, se infieren.
+     */
+    private BPackageSettings recoverPackageLP(File app, BPackageSettings partial) throws Exception {
+        String packageName = app.getName();
+        String apkPath = findBaseApk(app, partial);
+        if (apkPath == null) {
+            throw new java.io.FileNotFoundException("APK no encontrado para " + packageName);
+        }
+        boolean inAppDir = apkPath.equals(BEnvironment.getBaseApkDir(packageName).getAbsolutePath());
+        PackageInfo host = inAppDir ? null : hostPackageInfo(packageName);
+
+        InstallOption option = partial != null ? partial.installOption : null;
+        if (option == null) {
+            option = new InstallOption();
+            option.flags = PersistFormat.recoverInstallFlags(inAppDir, host != null);
+        }
+
+        PackageParser.Package aPackage = parserApk(apkPath);
+        if (aPackage == null) {
+            throw new RuntimeException("parser apk error: " + packageName);
+        }
+        if (host != null) {
+            aPackage.applicationInfo = host.applicationInfo;
+        }
+        BPackageSettings ps = getPackageLPw(packageName, aPackage, option);
+        if (host != null) {
+            PackageManagerCompat.adoptHostSplits(ps.pkg, aPackage.applicationInfo);
+        }
+        if (partial != null && partial.appId != 0 && partial.appId != ps.appId) {
+            Slog.w(TAG, "recover " + packageName + ": appId " + ps.appId + " -> " + partial.appId);
+            ps.appId = partial.appId;
+        }
+        if (partial != null && partial.userState != null && !partial.userState.isEmpty()) {
+            ps.userState = partial.userState;
+        } else {
+            ps.userState = new HashMap<>();
+            for (int userId : PersistFormat.assumeInstalledUsers(candidateUserIds(),
+                    id -> BEnvironment.getDataDir(packageName, id).exists())) {
+                ps.setInstalled(true, userId);
+            }
+        }
+        return ps;
+    }
+
+    private java.util.List<Integer> candidateUserIds() {
+        java.util.List<Integer> ids = new java.util.ArrayList<>();
+        File[] dirs = BEnvironment.getUserDir(0).getParentFile().listFiles();
+        if (dirs != null) {
+            for (File d : dirs) {
+                try {
+                    ids.add(Integer.parseInt(d.getName()));
+                } catch (NumberFormatException ignored) {
+                }
+            }
+        }
+        return ids;
     }
 
     private BPackageSettings reInstallBySystem(PackageInfo systemPackageInfo, InstallOption option) throws Exception {

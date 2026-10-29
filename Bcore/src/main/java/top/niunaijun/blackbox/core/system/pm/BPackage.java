@@ -150,6 +150,7 @@ public class BPackage implements Parcelable {
     }
 
     protected BPackage(Parcel in) {
+        int version = PersistFormat.readVersion(in);
         int N = in.readInt();
         this.activities = new ArrayList<>(N);
         while (N-- > 0) {
@@ -453,6 +454,7 @@ public class BPackage implements Parcelable {
 
         @Override
         public void writeToParcel(Parcel dest, int flags) {
+            PersistFormat.writeVersion(dest);
             dest.writeTypedArray(this.signatures, flags);
             dest.writeTypedArray(this.pastSigningCertificates, flags);
         }
@@ -463,6 +465,7 @@ public class BPackage implements Parcelable {
         }
 
         protected SigningDetails(Parcel in) {
+            int version = PersistFormat.readVersion(in);
             this.signatures = in.createTypedArray(Signature.CREATOR);
             this.pastSigningCertificates = in.createTypedArray(Signature.CREATOR);
         }
@@ -584,6 +587,8 @@ public class BPackage implements Parcelable {
 
     @Override
     public void writeToParcel(Parcel dest, int flags) {
+        // Nuevos campos solo al final y protegidos por version (ver PersistFormat).
+        PersistFormat.writeVersion(dest);
         int size = this.activities.size();
         dest.writeInt(size);
         for (Activity activity : this.activities) {
