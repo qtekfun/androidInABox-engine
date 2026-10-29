@@ -212,7 +212,7 @@ public class BInstallSessionService extends IBInstallSessionService.Stub impleme
             }
         }
         if (!rec.inheritsExisting() || pkg == null) return pkg;
-        BPackageSettings ps = BPackageManagerService.get().getBPackageSetting(pkg);
+        BPackageSettings ps = BPackageManagerService.get().getBPackageSetting(rec.userId, pkg);
         if (ps == null || ps.pkg == null || ps.pkg.baseCodePath == null) return pkg;
 
         List<InheritPlanner.Candidate> installed = new ArrayList<>();

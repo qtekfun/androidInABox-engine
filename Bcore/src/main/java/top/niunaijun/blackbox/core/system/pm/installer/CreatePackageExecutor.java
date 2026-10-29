@@ -10,11 +10,12 @@ public class CreatePackageExecutor implements Executor {
 
     @Override
     public int exec(BPackageSettings ps, InstallOption option, int userId) {
-        FileUtils.deleteDir(BEnvironment.getAppDir(ps.pkg.packageName));
+        // Solo la copia de este perfil: las de otros perfiles no se tocan (ADR-0008)
+        FileUtils.deleteDir(BEnvironment.getAppDir(ps.userId, ps.pkg.packageName));
 
         
-        FileUtils.mkdirs(BEnvironment.getAppDir(ps.pkg.packageName));
-        FileUtils.mkdirs(BEnvironment.getAppLibDir(ps.pkg.packageName));
+        FileUtils.mkdirs(BEnvironment.getAppDir(ps.userId, ps.pkg.packageName));
+        FileUtils.mkdirs(BEnvironment.getAppLibDir(ps.userId, ps.pkg.packageName));
         return 0;
     }
 }

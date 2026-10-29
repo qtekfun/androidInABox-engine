@@ -24,14 +24,17 @@ public final class PersistFormat {
     /** Marca al inicio de un parcelable versionado: no puede ser un tamaño ni un flag reales. */
     public static final int MAGIC = 0x42425046;
     public static final int VERSION_LEGACY = 0;
-    public static final int VERSION_ACTUAL = 1;
+    /** Primera versión con cabecera. */
+    public static final int VERSION_1 = 1;
+    /** v2 (ADR-0008): la copia guarda el perfil dueño. */
+    public static final int VERSION_ACTUAL = 2;
 
     private PersistFormat() {
     }
 
     /** Valida la versión leída tras la marca. Versiones futuras se aceptan (solo se añaden campos al final). */
     public static int checkVersion(int raw) {
-        if (raw < VERSION_ACTUAL) {
+        if (raw < VERSION_1) {
             throw new IllegalStateException("version de formato invalida: " + raw);
         }
         return raw;
