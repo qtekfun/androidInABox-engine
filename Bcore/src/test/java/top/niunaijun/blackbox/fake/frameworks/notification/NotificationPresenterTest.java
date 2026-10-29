@@ -17,6 +17,11 @@ public class NotificationPresenterTest {
     }
 
     @Test
+    public void titlePrefixWrapsAppAndProfile() {
+        assertEquals("[Chat \u00b7 Perfil 2] Ana", NotificationPresenter.titlePrefix("Chat", "Perfil 2", "Ana"));
+    }
+
+    @Test
     public void profileLabelIsOneBased() {
         assertEquals("Perfil 1", NotificationPresenter.profileLabel(0));
         assertEquals("Perfil 3", NotificationPresenter.profileLabel(2));

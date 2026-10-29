@@ -47,6 +47,12 @@ class SettingFragment : PreferenceFragmentCompat() {
             disableFlagSecurePreference
         }
 
+        invalidHideState {
+            val titlePrefixPreference: Preference = (findPreference("notification_title_prefix")!!)
+            titlePrefixPreference.setDefaultValue(AppManager.mBlackBoxLoader.notificationTitlePrefix())
+            titlePrefixPreference
+        }
+
     }
 
     private fun initGms() {
@@ -95,6 +101,9 @@ class SettingFragment : PreferenceFragmentCompat() {
                 }
                 "disable_flag_secure" -> {
                     AppManager.mBlackBoxLoader.invalidDisableFlagSecure(tmpHide)
+                }
+                "notification_title_prefix" -> {
+                    AppManager.mBlackBoxLoader.invalidNotificationTitlePrefix(tmpHide)
                 }
             }
 

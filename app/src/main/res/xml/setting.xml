@@ -31,6 +31,11 @@
                 app:title="@string/disable_flag_secure"
                 app:summary="@string/disable_flag_secure_summary" />
 
+        <SwitchPreferenceCompat
+                app:key="notification_title_prefix"
+                app:title="@string/notification_title_prefix"
+                app:summary="@string/notification_title_prefix_summary" />
+
 
     </PreferenceCategory>
 

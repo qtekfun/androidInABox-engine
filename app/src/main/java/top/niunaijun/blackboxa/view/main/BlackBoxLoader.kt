@@ -25,6 +25,25 @@ class BlackBoxLoader {
 
     private var mDisableFlagSecure by AppSharedPreferenceDelegate(App.getContext(), false)
 
+    private var mNotificationTitlePrefix by AppSharedPreferenceDelegate(App.getContext(), false)
+
+    fun notificationTitlePrefix(): Boolean {
+        return try {
+            mNotificationTitlePrefix
+        } catch (e: Exception) {
+            Log.e(TAG, "Error getting notificationTitlePrefix: ${e.message}")
+            false
+        }
+    }
+
+    fun invalidNotificationTitlePrefix(enable: Boolean) {
+        try {
+            this.mNotificationTitlePrefix = enable
+        } catch (e: Exception) {
+            Log.e(TAG, "Error setting notificationTitlePrefix: ${e.message}")
+        }
+    }
+
     fun hideRoot(): Boolean {
         return try {
             mHideRoot
@@ -258,6 +277,15 @@ class BlackBoxLoader {
                                         mUseVpnNetwork
                                     } catch (e: Exception) {
                                         Log.e(TAG, "Error checking useVpnNetwork: ${e.message}")
+                                        false
+                                    }
+                                }
+
+                                override fun isNotificationTitlePrefix(): Boolean {
+                                    return try {
+                                        mNotificationTitlePrefix
+                                    } catch (e: Exception) {
+                                        Log.e(TAG, "Error checking notificationTitlePrefix: ${e.message}")
                                         false
                                     }
                                 }

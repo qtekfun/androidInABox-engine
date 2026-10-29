@@ -83,6 +83,14 @@ public final class NotificationPresenter {
                 own = sub.toString();
             }
             extras.putCharSequence(Notification.EXTRA_SUB_TEXT, subText(app, profile, own));
+            if (BlackBoxCore.get().isNotificationTitlePrefix()) {
+                for (String key : new String[]{Notification.EXTRA_TITLE, Notification.EXTRA_TITLE_BIG}) {
+                    CharSequence title = extras.getCharSequence(key);
+                    if (title != null) {
+                        extras.putCharSequence(key, titlePrefix(app, profile, title));
+                    }
+                }
+            }
             extras.putString(EXTRA_APP_LABEL, app);
             extras.putString(EXTRA_PROFILE_LABEL, profile);
         } catch (Throwable t) {
@@ -98,6 +106,11 @@ public final class NotificationPresenter {
     public static String subText(String app, String profile, String own) {
         String base = app + " \u00b7 " + profile;
         return own == null || own.isEmpty() ? base : base + " \u00b7 " + own;
+    }
+
+    /** R02.6: {@code [<App> · <Perfil>] <titulo>}. */
+    public static String titlePrefix(String app, String profile, CharSequence title) {
+        return "[" + app + " \u00b7 " + profile + "] " + title;
     }
 
     @SuppressWarnings("deprecation")

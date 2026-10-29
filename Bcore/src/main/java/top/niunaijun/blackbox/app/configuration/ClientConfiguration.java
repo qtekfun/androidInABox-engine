@@ -30,6 +30,11 @@ public abstract class ClientConfiguration {
         return false;
     }
 
+    /** Anteponer {@code [<App> · <Perfil>]} al titulo de las notificaciones del invitado (relojes que no muestran subText). */
+    public boolean isNotificationTitlePrefix() {
+        return false;
+    }
+
     
     public boolean requestInstallPackage(File file, int userId) {
         return false;

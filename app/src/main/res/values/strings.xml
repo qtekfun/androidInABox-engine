@@ -68,6 +68,8 @@
     <string name="disable_gms">Disable Service</string>
     <string name="disable_gms_hint">Clear the current Google service environment? Google service data will be cleared.</string>
     <string name="no_gms">Currently, there is no Google service environment on mobile phones.</string>
+    <string name="notification_title_prefix">Identify app in notification title</string>
+    <string name="notification_title_prefix_summary">Prefix the title with [App · Profile], useful for watches that hide the subtext</string>
     <string name="notification_permission_title">Notifications are off</string>
     <string name="notification_permission_message">Apps inside the box publish their notifications through this app. Turn notifications on for it in the system settings to receive them.</string>
     <string name="notification_permission_open_settings">Open settings</string>
