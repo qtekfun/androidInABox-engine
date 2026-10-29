@@ -74,6 +74,7 @@ import top.niunaijun.blackbox.fake.service.IShortcutManagerProxy;
 import top.niunaijun.blackbox.fake.service.IStorageManagerProxy;
 import top.niunaijun.blackbox.fake.service.IStorageStatsManagerProxy;
 import top.niunaijun.blackbox.fake.service.ISystemUpdateProxy;
+import top.niunaijun.blackbox.fake.service.ILocaleManagerProxy;
 import top.niunaijun.blackbox.fake.service.ITelephonyManagerProxy;
 import top.niunaijun.blackbox.fake.service.ITelephonyRegistryProxy;
 import top.niunaijun.blackbox.fake.service.IUserManagerProxy;
@@ -194,6 +195,9 @@ public class HookManager {
             
             if (BuildCompat.isPie()) {
                 addInjector(new ISystemUpdateProxy());
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    addInjector(new ILocaleManagerProxy());
+                }
             }
             
             if (BuildCompat.isOreo()) {
