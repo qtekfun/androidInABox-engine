@@ -373,6 +373,14 @@ public class BActivityThread extends IBActivityThread.Stub {
         } catch (Throwable ignored) {
         }
 
+        // el nombre declarado del proceso invitado manda sobre el que llegue del componente que disparo el enlace
+        AppConfig procConfig = getAppConfig();
+        if (procConfig != null && procConfig.processName != null && !procConfig.processName.isEmpty()) {
+            processName = procConfig.processName;
+        } else if (processName == null || processName.isEmpty()) {
+            processName = packageName;
+        }
+
         PackageInfo packageInfo = BlackBoxCore.getBPackageManager().getPackageInfo(packageName, PackageManager.GET_PROVIDERS, BActivityThread.getUserId());
         ApplicationInfo applicationInfo = packageInfo.applicationInfo;
         if (packageInfo.providers == null) {
@@ -381,6 +389,12 @@ public class BActivityThread extends IBActivityThread.Stub {
         mProviders.addAll(Arrays.asList(packageInfo.providers));
 
         Object boundApplication = BRActivityThread.get(BlackBoxCore.mainThread()).mBoundApplication();
+        // AppBindData.processName (Application.getProcessName, Process.myProcessName) antes de cualquier fabrica de componentes
+        try {
+            BRActivityThreadAppBindData.get(boundApplication)._set_processName(processName);
+        } catch (Throwable t) {
+            Slog.w(TAG, "No se pudo fijar el nombre de proceso previo", t);
+        }
 
         Context packageContext = createPackageContext(applicationInfo);
         Object loadedApk = BRContextImpl.get(packageContext).mPackageInfo();
@@ -495,6 +509,8 @@ public class BActivityThread extends IBActivityThread.Stub {
             AppInstrumentation.get().callApplicationOnCreate(application);
             onAfterApplicationOnCreate(packageName, processName, application);
 
+            logProcessName(processName, application);
+
             HookManager.get().checkEnv(HCallbackProxy.class);
         } catch (Exception e) {
             Slog.e(TAG, "Critical error in handleBindApplication", e);
@@ -503,6 +519,23 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
     
     
+    private void logProcessName(String processName, Application application) {
+        String appName = null;
+        String procName = null;
+        try {
+            appName = Application.getProcessName();
+        } catch (Throwable ignored) {
+        }
+        try {
+            if (Build.VERSION.SDK_INT >= 33) {
+                procName = android.os.Process.myProcessName();
+            }
+        } catch (Throwable ignored) {
+        }
+        Slog.d(TAG, "Nombre de proceso del invitado: " + processName
+                + " (Application.getProcessName=" + appName + ", Process.myProcessName=" + procName + ")");
+    }
+
     private void initializeJarEnvironment() {
         try {
             Slog.d(TAG, "Initializing JAR environment for DEX loading");
