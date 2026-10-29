@@ -74,6 +74,7 @@ import top.niunaijun.blackbox.fake.service.IStorageManagerProxy;
 import top.niunaijun.blackbox.fake.service.IStorageStatsManagerProxy;
 import top.niunaijun.blackbox.fake.service.ISystemUpdateProxy;
 import top.niunaijun.blackbox.fake.service.ILocaleManagerProxy;
+import top.niunaijun.blackbox.fake.service.ISubProxy;
 import top.niunaijun.blackbox.fake.service.IPermissionCheckerProxy;
 import top.niunaijun.blackbox.fake.service.ITelephonyManagerProxy;
 import top.niunaijun.blackbox.fake.service.ITelephonyRegistryProxy;
@@ -202,6 +203,7 @@ public class HookManager {
                 if (android.os.Build.VERSION.SDK_INT >= 33) {
                     addInjector(new ILocaleManagerProxy());
                 }
+                addInjector(new ISubProxy());
                 if (android.os.Build.VERSION.SDK_INT >= 31) {
                     addInjector(new IPermissionCheckerProxy());
                 }

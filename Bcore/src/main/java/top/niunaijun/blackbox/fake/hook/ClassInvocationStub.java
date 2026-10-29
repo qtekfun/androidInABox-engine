@@ -130,7 +130,15 @@ public abstract class ClassInvocationStub implements InvocationHandler, IInjectH
         if (result != null) {
             return result;
         }
-        result = methodHook.hook(mBase, method, args);
+        try {
+            result = methodHook.hook(mBase, method, args);
+        } catch (Throwable e) {
+            Throwable cause = e instanceof java.lang.reflect.InvocationTargetException && e.getCause() != null ? e.getCause() : e;
+            if (cause instanceof SecurityException && GooglePrivileged.shouldSoften(method)) {
+                return GooglePrivileged.defaultValue(method.getReturnType());
+            }
+            throw cause;
+        }
         result = methodHook.afterHook(result);
         return result;
     }
