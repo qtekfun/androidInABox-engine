@@ -70,6 +70,7 @@ import top.niunaijun.blackbox.core.env.VirtualRuntime;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
 import top.niunaijun.blackbox.entity.AppConfig;
 import top.niunaijun.blackbox.entity.am.ReceiverData;
+import top.niunaijun.blackbox.proxy.record.ProxyPendingRecord;
 
 import top.niunaijun.blackbox.fake.delegate.AppInstrumentation;
 import top.niunaijun.blackbox.fake.delegate.ContentProviderDelegate;
@@ -1188,6 +1189,16 @@ public class BActivityThread extends IBActivityThread.Stub {
             try {
                 Context baseContext = mInitialApplication.getBaseContext();
                 ClassLoader classLoader = baseContext.getClassLoader();
+                if (data.pendingTarget != null) {
+                    // PendingIntent del invitado: aqui, y solo aqui, se abre el original y se le fusiona el relleno
+                    intent = ProxyPendingRecord.materialize(data.pendingTarget, data.fillIn, classLoader);
+                    if (intent == null) {
+                        Slog.w(TAG, "PendingIntent descartado: intent original ilegible");
+                        pendingResult.finish();
+                        BlackBoxCore.getBActivityManager().finishBroadcast(data.data);
+                        return;
+                    }
+                }
                 intent.setExtrasClassLoader(classLoader);
 
                 mReceiver = (BroadcastReceiver) classLoader.loadClass(activityInfo.name).newInstance();

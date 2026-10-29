@@ -14,6 +14,8 @@ import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.entity.ServiceRecord;
 import top.niunaijun.blackbox.entity.UnbindRecord;
+import top.niunaijun.blackbox.proxy.record.ProxyPendingRecord;
+import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.proxy.record.ProxyServiceRecord;
 
 import static android.app.Service.START_NOT_STICKY;
@@ -78,6 +80,15 @@ public class AppServiceDispatcher {
         Service service = getOrCreateService(stubRecord);
         if (service == null)
             return START_NOT_STICKY;
+        if (stubRecord.mPendingBytes != null) {
+            // PendingIntent del invitado: se abre el original aqui y se le fusiona el relleno
+            Intent target = ProxyPendingRecord.materialize(stubRecord.mPendingBytes, stubRecord.mPendingFill, service.getClassLoader());
+            if (target == null) {
+                Slog.w(TAG, "PendingIntent de servicio descartado: intent original ilegible");
+                return START_NOT_STICKY;
+            }
+            stubRecord.mServiceIntent = target;
+        }
         stubRecord.mServiceIntent.setExtrasClassLoader(service.getClassLoader());
         ServiceRecord record = findRecord(stubRecord.mServiceIntent);
         record.setStartId(stubRecord.mStartId);

@@ -9,6 +9,7 @@ import android.content.pm.ResolveInfo;
 import android.os.Binder;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.Process;
 import android.os.RemoteException;
 
 import java.util.HashMap;
@@ -26,6 +27,7 @@ import top.niunaijun.blackbox.entity.am.PendingResultData;
 import top.niunaijun.blackbox.entity.am.ReceiverData;
 import top.niunaijun.blackbox.entity.am.RunningAppProcessInfo;
 import top.niunaijun.blackbox.entity.am.RunningServiceInfo;
+import top.niunaijun.blackbox.proxy.record.ProxyPendingRecord;
 import top.niunaijun.blackbox.utils.Slog;
 
 import static android.content.pm.PackageManager.GET_META_DATA;
@@ -205,6 +207,59 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
                 processRecord.bActivityThread.scheduleReceiver(data);
             }
         }
+    }
+
+    /**
+     * Entrega un PendingIntent de broadcast o servicio del invitado, ya validado por
+     * {@code ProxyPendingReceiver}. Solo se resuelve contra los paquetes del box: si no se puede,
+     * se descarta y se registra el motivo (R02.20); el intent original nunca se manda al sistema.
+     * {@code record.mRouting} no lleva extras, de modo que aqui no se abren clases del invitado.
+     */
+    public void deliverPending(ProxyPendingRecord record, Intent fill, PendingResultData pendingResultData) {
+        int userId = record.mUserId;
+        if (BPackageManagerService.get().getApplicationInfo(record.mPackage, 0, userId) == null) {
+            discardPending(pendingResultData, "el paquete " + record.mPackage + " no esta instalado en el perfil " + userId);
+            return;
+        }
+        try {
+            if (record.mKind == ProxyPendingRecord.KIND_BROADCAST) {
+                List<ResolveInfo> resolves = BPackageManagerService.get().queryBroadcastReceivers(record.mRouting, GET_META_DATA, null, userId);
+                if (resolves.isEmpty()) {
+                    discardPending(pendingResultData, "ningun receptor en el perfil " + userId + " para " + record.mRouting);
+                    return;
+                }
+                mBroadcastManager.sendBroadcast(pendingResultData);
+                for (ResolveInfo resolve : resolves) {
+                    ProcessRecord processRecord = BProcessManagerService.get().startProcessLocked(
+                            resolve.activityInfo.packageName, resolve.activityInfo.processName, userId, -1, Process.myPid());
+                    if (processRecord == null) {
+                        continue;
+                    }
+                    ReceiverData data = new ReceiverData();
+                    data.intent = record.mRouting;
+                    data.pendingTarget = record.mTargetBytes;
+                    data.fillIn = fill;
+                    data.activityInfo = resolve.activityInfo;
+                    data.data = pendingResultData;
+                    processRecord.bActivityThread.scheduleReceiver(data);
+                }
+            } else {
+                UserSpace userSpace = getOrCreateSpaceLocked(userId);
+                synchronized (userSpace.mActiveServices) {
+                    userSpace.mActiveServices.startService(record.mRouting, null,
+                            record.mKind == ProxyPendingRecord.KIND_FOREGROUND_SERVICE, userId, record.mTargetBytes, fill);
+                }
+                pendingResultData.build().finish();
+            }
+        } catch (Throwable t) {
+            Slog.e(TAG, "PendingIntent descartado: fallo al entregarlo " + record, t);
+            pendingResultData.build().finish();
+        }
+    }
+
+    private void discardPending(PendingResultData pendingResultData, String reason) {
+        Slog.w(TAG, "PendingIntent descartado: " + reason);
+        pendingResultData.build().finish();
     }
 
     @Override

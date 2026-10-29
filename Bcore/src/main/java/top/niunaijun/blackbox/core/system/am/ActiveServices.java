@@ -38,6 +38,15 @@ public class ActiveServices {
     private final Map<IBinder, ConnectedServiceRecord> mConnectedServices = new HashMap<>();
 
     public void startService(Intent intent, String resolvedType, boolean requireForeground, int userId) {
+        startService(intent, resolvedType, requireForeground, userId, null, null);
+    }
+
+    /**
+     * {@code pendingBytes} y {@code pendingFill} (PendingIntent del invitado): {@code intent} es solo
+     * la ruta (sin extras) y el original viaja sin abrir hasta el proceso invitado.
+     */
+    public void startService(Intent intent, String resolvedType, boolean requireForeground, int userId,
+                             byte[] pendingBytes, Intent pendingFill) {
         ResolveInfo resolveInfo = resolveService(intent, resolvedType, userId);
         if (resolveInfo == null)
             return;
@@ -52,6 +61,9 @@ public class ActiveServices {
 
         runningServiceRecord.getAndIncrementStartId();
         final Intent stubServiceIntent = createStubServiceIntent(intent, serviceInfo, processRecord, runningServiceRecord);
+        if (pendingBytes != null) {
+            ProxyServiceRecord.savePending(stubServiceIntent, pendingBytes, pendingFill);
+        }
         new Thread(new Runnable() {
             @Override
             public void run() {

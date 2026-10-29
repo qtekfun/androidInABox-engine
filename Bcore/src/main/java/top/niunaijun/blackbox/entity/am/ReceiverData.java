@@ -10,6 +10,10 @@ public class ReceiverData implements Parcelable {
     public Intent intent;
     public ActivityInfo activityInfo;
     public PendingResultData data;
+    /** PendingIntent del invitado: Intent original (Parcel.marshall) que solo se abre en el invitado. */
+    public byte[] pendingTarget;
+    /** Relleno del PendingIntent (extras, ClipData con la respuesta de RemoteInput). */
+    public Intent fillIn;
 
     @Override
     public int describeContents() {
@@ -21,12 +25,16 @@ public class ReceiverData implements Parcelable {
         dest.writeParcelable(this.intent, flags);
         dest.writeParcelable(this.activityInfo, flags);
         dest.writeParcelable(this.data, flags);
+        dest.writeByteArray(this.pendingTarget);
+        dest.writeParcelable(this.fillIn, flags);
     }
 
     public void readFromParcel(Parcel source) {
         this.intent = source.readParcelable(Intent.class.getClassLoader());
         this.activityInfo = source.readParcelable(ActivityInfo.class.getClassLoader());
         this.data = source.readParcelable(PendingResultData.class.getClassLoader());
+        this.pendingTarget = source.createByteArray();
+        this.fillIn = source.readParcelable(Intent.class.getClassLoader());
     }
 
     public ReceiverData() {
@@ -36,6 +44,8 @@ public class ReceiverData implements Parcelable {
         this.intent = in.readParcelable(Intent.class.getClassLoader());
         this.activityInfo = in.readParcelable(ActivityInfo.class.getClassLoader());
         this.data = in.readParcelable(PendingResultData.class.getClassLoader());
+        this.pendingTarget = in.createByteArray();
+        this.fillIn = in.readParcelable(Intent.class.getClassLoader());
     }
 
     public static final Parcelable.Creator<ReceiverData> CREATOR = new Parcelable.Creator<ReceiverData>() {

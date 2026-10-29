@@ -13,6 +13,17 @@ public class ProxyServiceRecord {
     public IBinder mToken;
     public int mUserId;
     public int mStartId;
+    /** PendingIntent del invitado: original sin abrir y relleno; ver {@link ProxyPendingRecord}. */
+    public byte[] mPendingBytes;
+    public Intent mPendingFill;
+
+    private static final String KEY_PENDING_BYTES = "_B_|_pending_bytes_";
+    private static final String KEY_PENDING_FILL = "_B_|_pending_fill_";
+
+    public static void savePending(Intent shadow, byte[] targetBytes, Intent fill) {
+        shadow.putExtra(KEY_PENDING_BYTES, targetBytes);
+        shadow.putExtra(KEY_PENDING_FILL, fill);
+    }
 
     public ProxyServiceRecord(Intent serviceIntent, ServiceInfo serviceInfo, IBinder token, int userId, int startId) {
         mServiceIntent = serviceIntent;
@@ -36,6 +47,9 @@ public class ProxyServiceRecord {
         int userId = intent.getIntExtra("_B_|_user_id_", 0);
         int startId = intent.getIntExtra("_B_|_start_id_", 0);
         IBinder token = BundleCompat.getBinder(intent, "_B_|_token_");
-        return new ProxyServiceRecord(target, serviceInfo, token, userId, startId);
+        ProxyServiceRecord record = new ProxyServiceRecord(target, serviceInfo, token, userId, startId);
+        record.mPendingBytes = intent.getByteArrayExtra(KEY_PENDING_BYTES);
+        record.mPendingFill = intent.getParcelableExtra(KEY_PENDING_FILL);
+        return record;
     }
 }
