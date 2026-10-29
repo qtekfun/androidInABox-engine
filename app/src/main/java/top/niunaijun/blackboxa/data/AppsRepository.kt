@@ -18,6 +18,32 @@ import top.niunaijun.blackboxa.util.getString
 
 class AppsRepository {
     val TAG: String = "AppsRepository"
+
+    private companion object {
+        val CORE_SYSTEM_PACKAGES =
+                setOf(
+                        "android",
+                        "com.android.systemui",
+                        "com.android.settings",
+                        "com.android.phone",
+                        "com.android.server.telecom",
+                        "com.android.shell",
+                        "com.android.packageinstaller",
+                        "com.google.android.packageinstaller",
+                        "com.google.android.permissioncontroller",
+                        "com.android.permissioncontroller",
+                        "com.android.inputmethod.latin",
+                        "com.android.bluetooth",
+                        "com.android.nfc",
+                        "com.android.keychain",
+                        "com.android.location.fused",
+                        "com.android.externalstorage",
+                        "com.android.mtp",
+                        "com.android.vending.billing.InAppBillingService.COIN"
+                )
+        val CORE_SYSTEM_PREFIXES =
+                listOf("com.android.providers.", "com.android.internal.", "android.ext.")
+    }
     private var mInstalledList = mutableListOf<AppInfo>()
 
     
@@ -78,6 +104,26 @@ class AppsRepository {
         }
     }
 
+    /**
+     * Apps clonables: las de usuario, las de sistema actualizadas (Gmail, YouTube...) y las de
+     * sistema con actividad de lanzador. Se excluyen los paquetes centrales del sistema.
+     */
+    private fun isCloneCandidate(app: ApplicationInfo): Boolean {
+        val isSystem = (app.flags and ApplicationInfo.FLAG_SYSTEM) != 0
+        if (!isSystem) return true
+        val pkg = app.packageName
+        if (pkg in CORE_SYSTEM_PACKAGES || CORE_SYSTEM_PREFIXES.any { pkg.startsWith(it) }) {
+            return false
+        }
+        if ((app.flags and ApplicationInfo.FLAG_PERSISTENT) != 0) return false
+        if ((app.flags and ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0) return true
+        return try {
+            BlackBoxCore.getPackageManager().getLaunchIntentForPackage(pkg) != null
+        } catch (e: Exception) {
+            false
+        }
+    }
+
     fun previewInstallList() {
         try {
             synchronized(mInstalledList) {
@@ -89,8 +135,7 @@ class AppsRepository {
                     try {
                         val file = File(installedApplication.sourceDir)
 
-                        if ((installedApplication.flags and ApplicationInfo.FLAG_SYSTEM) != 0)
-                                continue
+                        if (!isCloneCandidate(installedApplication)) continue
 
                         if (!AbiUtils.isSupport(file)) continue
 
