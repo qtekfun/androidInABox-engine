@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material.icons.filled.Shield
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -55,7 +56,16 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.DisposableEffect
 import top.niunaijun.blackboxa.R
 
-private class OnbStep(val icon: ImageVector, val title: Int, val body: Int, val grantable: Boolean)
+private class OnbStep(
+    val icon: ImageVector,
+    val title: Int,
+    val body: Int,
+    val grantable: Boolean,
+    val infoLink: Boolean = false,
+)
+
+private const val SECURITY_NOTICE_URL =
+    "https://github.com/qtekfun/androidInABox/blob/main/docs/usuario/aviso-seguridad.md"
 
 @Composable
 fun OnboardingScreen(onFinish: () -> Unit) {
@@ -66,6 +76,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             OnbStep(Icons.Filled.Notifications, R.string.onb_notif_title, R.string.onb_notif_body, true),
             OnbStep(Icons.Filled.BatterySaver, R.string.onb_battery_title, R.string.onb_battery_body, true),
             OnbStep(Icons.Filled.Folder, R.string.onb_storage_title, R.string.onb_storage_body, true),
+            OnbStep(Icons.Filled.Shield, R.string.onb_av_title, R.string.onb_av_body, false, infoLink = true),
         )
     }
     var index by remember { mutableIntStateOf(0) }
@@ -150,6 +161,17 @@ fun OnboardingScreen(onFinish: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                     )
+                    if (s.infoLink) {
+                        Spacer(Modifier.height(24.dp))
+                        OutlinedButton(onClick = {
+                            try {
+                                context.startActivity(
+                                    Intent(Intent.ACTION_VIEW, Uri.parse(SECURITY_NOTICE_URL))
+                                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                )
+                            } catch (_: Throwable) { }
+                        }) { Text(stringResource(R.string.onb_av_link)) }
+                    }
                     if (s.grantable) {
                         Spacer(Modifier.height(24.dp))
                         if (ok) {

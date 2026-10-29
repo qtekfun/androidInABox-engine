@@ -133,5 +133,8 @@
     <string name="onb_battery_body">Excluir androidInABox de la optimización de batería ayuda a que las apps sigan activas en segundo plano y reciban mensajes.</string>
     <string name="onb_storage_title">Acceso al almacenamiento</string>
     <string name="onb_storage_body">Hace falta para elegir archivos APK y para que las apps de dentro lean y escriban sus archivos. Nada sale de tu dispositivo.</string>
+    <string name="onb_av_title">Aviso de seguridad del móvil</string>
+    <string name="onb_av_body">Algunos móviles (ColorOS, MIUI y similares) muestran un análisis de seguridad con un aviso de \"riesgos\" sobre androidInABox. Es normal, porque la app ejecuta otras apps en su interior. Pulsa \"Ignorar\". Nunca pulses \"Corregir ahora\": podría eliminar la app o sus datos.</string>
+    <string name="onb_av_link">Más información</string>
     <string name="onb_step_of">Paso %1$d de %2$d</string>
 </resources>
