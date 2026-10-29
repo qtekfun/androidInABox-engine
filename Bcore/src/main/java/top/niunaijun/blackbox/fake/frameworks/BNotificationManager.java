@@ -122,4 +122,76 @@ public class BNotificationManager extends BlackManager<IBNotificationManagerServ
         }
         return new ArrayList<>();
     }
+
+    // ---- escucha de notificaciones (spec 06) ----
+
+    public boolean isListenerAccessGranted(String component) {
+        try {
+            return getService().isListenerAccessGranted(component, BActivityThread.getUserId());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public boolean isListenerPackageGranted(String packageName) {
+        try {
+            return getService().isListenerPackageGranted(packageName, BActivityThread.getUserId());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return false;
+    }
+
+    public List<String> getEnabledListeners() {
+        try {
+            return getService().getEnabledListeners(BActivityThread.getUserId());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>();
+    }
+
+    public List<android.service.notification.StatusBarNotification> getActiveNotificationsForListener() {
+        try {
+            return getService().getActiveNotificationsForListener(BActivityThread.getUserId());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+        return new ArrayList<>();
+    }
+
+    public void cancelNotificationFromListener(String pkg, String tag, int id) {
+        try {
+            getService().cancelNotificationFromListener(pkg, tag, id, BActivityThread.getUserId());
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** Solo desde el host (pantalla de ajustes): concede o retira el acceso de un oyente invitado. */
+    public void setListenerAccessGranted(String component, int userId, boolean granted) {
+        try {
+            getService().setListenerAccessGranted(component, userId, granted);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    /** Solo desde el host: puente del sistema real. */
+    public void onRealNotificationPosted(android.service.notification.StatusBarNotification sbn) {
+        try {
+            getService().onRealNotificationPosted(sbn);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public void onRealNotificationRemoved(android.service.notification.StatusBarNotification sbn) {
+        try {
+            getService().onRealNotificationRemoved(sbn);
+        } catch (RemoteException e) {
+            e.printStackTrace();
+        }
+    }
 }

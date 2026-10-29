@@ -35,6 +35,18 @@ public class ISettingsProviderProxy extends ClassInvocationStub {
         return false;
     }
 
+    /** Settings.Secure.enabled_notification_listeners: los oyentes autorizados en el box (spec 06, R06.10). */
+    static String enabledListeners() {
+        StringBuilder sb = new StringBuilder();
+        for (String c : top.niunaijun.blackbox.fake.frameworks.BNotificationManager.get().getEnabledListeners()) {
+            if (sb.length() > 0) {
+                sb.append(':');
+            }
+            sb.append(c);
+        }
+        return sb.toString();
+    }
+
     @ProxyMethod("getStringForUser")
     public static class GetStringForUser extends MethodHook {
         @Override
@@ -43,6 +55,9 @@ public class ISettingsProviderProxy extends ClassInvocationStub {
                 
                 if (args != null && args.length > 0) {
                     String key = (String) args[0];
+                    if ("enabled_notification_listeners".equals(key)) {
+                        return enabledListeners();
+                    }
                     if (key != null && key.contains("feature_flag")) {
                         Slog.d(TAG, "Intercepting feature flag query: " + key + ", returning safe default");
                         return "true"; 
@@ -70,6 +85,9 @@ public class ISettingsProviderProxy extends ClassInvocationStub {
                 
                 if (args != null && args.length > 0) {
                     String key = (String) args[0];
+                    if ("enabled_notification_listeners".equals(key)) {
+                        return enabledListeners();
+                    }
                     if (key != null && key.contains("feature_flag")) {
                         Slog.d(TAG, "Intercepting feature flag query: " + key + ", returning safe default");
                         return "true"; 

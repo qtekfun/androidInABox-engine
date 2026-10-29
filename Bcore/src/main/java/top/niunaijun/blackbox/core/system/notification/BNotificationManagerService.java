@@ -57,6 +57,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         mNotificationChannelManager = NotificationChannelManager.get();
         BPackageManagerService.get().addPackageMonitor(this);
         deleteLegacyChannels();
+        BNotificationListenerService.get().systemReady();
     }
 
     // Las notificaciones solo se retiran al desinstalar o borrar datos, no al morir un proceso.
@@ -230,6 +231,65 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
                 NotificationIds.scoped(userId, processByPid.getPackageName(), groupId));
     }
 
+    // ---- escucha de notificaciones (spec 06) ----
+
+    @Override
+    public boolean isListenerAccessGranted(String component, int userId) {
+        return BNotificationListenerService.get().isGranted(userId, component);
+    }
+
+    @Override
+    public boolean isListenerPackageGranted(String packageName, int userId) {
+        return BNotificationListenerService.get().isPackageGranted(userId, packageName);
+    }
+
+    @Override
+    public List<String> getEnabledListeners(int userId) {
+        return BNotificationListenerService.get().getEnabled(userId);
+    }
+
+    @Override
+    public void setListenerAccessGranted(String component, int userId, boolean granted) {
+        // Solo el host decide: un invitado no puede concederse acceso a si mismo
+        if (callerOrNull() != null) {
+            return;
+        }
+        BNotificationListenerService.get().setGranted(userId, component, granted);
+    }
+
+    @Override
+    public List<StatusBarNotification> getActiveNotificationsForListener(int userId) {
+        return BNotificationListenerService.get().getActive(userId);
+    }
+
+    /** Un oyente cancela una notificacion del box; las reales reenviadas no se pueden cancelar desde aqui. */
+    @Override
+    public void cancelNotificationFromListener(String pkg, String tag, int id, int userId) {
+        if (!BNotificationListenerService.get().isGuestNotification(userId, pkg, tag, id)) {
+            return;
+        }
+        mRealNotificationManager.cancel(NotificationIds.scoped(userId, pkg, tag), id);
+        BNotificationListenerService.get().onGuestRemoved(userId, pkg, id, tag);
+    }
+
+    // ---- puente del sistema real (spec 06, 3.4) ----
+
+    @Override
+    public void onRealNotificationPosted(StatusBarNotification sbn) {
+        if (callerOrNull() != null) {
+            return;
+        }
+        BNotificationListenerService.get().onRealPosted(sbn);
+    }
+
+    @Override
+    public void onRealNotificationRemoved(StatusBarNotification sbn) {
+        if (callerOrNull() != null) {
+            return;
+        }
+        BNotificationListenerService.get().onRealRemoved(sbn);
+    }
+
     // ---- notificaciones ----
 
     @Override
@@ -244,6 +304,8 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
             notification.extras.remove(NotificationPresenter.EXTRA_APP_LABEL);
             notification.extras.remove(NotificationPresenter.EXTRA_PROFILE_LABEL);
         }
+        // Copia para los oyentes del box, antes de que canal y grupo pasen a ids reales
+        Notification forListeners = notification.clone();
         if (BuildCompat.isOreo()) {
             NotificationOContext notificationOContext = BRNotificationO.get(notification);
 
@@ -260,6 +322,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         }
         Slog.i(TAG, "BLACKNOTIF smallIcon=" + notification.getSmallIcon() + " icon=" + notification.icon);
         mRealNotificationManager.notify(realTag, id, notification);
+        BNotificationListenerService.get().onGuestPosted(userId, packageName, id, tag, forListeners);
     }
 
     @Override
@@ -268,6 +331,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
         if (processByPid == null)
             return;
         mRealNotificationManager.cancel(NotificationIds.scoped(userId, processByPid.getPackageName(), tag), id);
+        BNotificationListenerService.get().onGuestRemoved(userId, processByPid.getPackageName(), id, tag);
     }
 
     @Override
@@ -280,6 +344,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
 
     /** Cancela todo lo publicado por (paquete, perfil), sin tocar lo del host ni lo de otras apps. */
     private void cancelAllOf(String packageName, int userId) {
+        BNotificationListenerService.get().onGuestRemovedAll(userId, packageName);
         try {
             for (StatusBarNotification sbn : mRealNotificationManager.getActiveNotifications()) {
                 if (NotificationIds.matches(sbn.getTag(), userId, packageName)) {

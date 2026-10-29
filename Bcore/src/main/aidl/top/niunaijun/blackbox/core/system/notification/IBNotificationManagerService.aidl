@@ -5,6 +5,7 @@ package top.niunaijun.blackbox.core.system.notification;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationChannelGroup;
+import android.service.notification.StatusBarNotification;
 
 interface IBNotificationManagerService {
 
@@ -27,4 +28,20 @@ interface IBNotificationManagerService {
     void cancelNotificationWithTag(int id, String tag, int userId);
 
     void cancelAllNotifications(int userId);
+
+    boolean isListenerAccessGranted(String component, int userId);
+
+    boolean isListenerPackageGranted(String packageName, int userId);
+
+    List<String> getEnabledListeners(int userId);
+
+    void setListenerAccessGranted(String component, int userId, boolean granted);
+
+    List<StatusBarNotification> getActiveNotificationsForListener(int userId);
+
+    void cancelNotificationFromListener(String pkg, String tag, int id, int userId);
+
+    void onRealNotificationPosted(in StatusBarNotification sbn);
+
+    void onRealNotificationRemoved(in StatusBarNotification sbn);
 }
