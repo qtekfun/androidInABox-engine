@@ -235,6 +235,7 @@ public class BActivityThread extends IBActivityThread.Stub {
                     serviceInfo.packageName,
                     Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY
             );
+            fixPackageContextApplication(context);
             BRContextImpl.get(context).setOuterContext(service);
             BRService.get(service).attach(
                     context,
@@ -290,6 +291,7 @@ public class BActivityThread extends IBActivityThread.Stub {
                     serviceInfo.packageName,
                     Context.CONTEXT_INCLUDE_CODE | Context.CONTEXT_IGNORE_SECURITY
             );
+            fixPackageContextApplication(context);
             BRContextImpl.get(context).setOuterContext(service);
             BRService.get(service).attach(
                     context,
@@ -455,10 +457,10 @@ public class BActivityThread extends IBActivityThread.Stub {
                 if (application == null) {
                     Slog.w(TAG, "Creating minimal application context as fallback");
                     try {
-                        
-                        application = (Application) packageContext;
+                        // un Context no es un Application: se crea una Application minima real
+                        application = createMinimalApplication(packageContext, packageName);
                         if (application == null) {
-                            Slog.e(TAG, "Even package context is null, this is critical");
+                            Slog.e(TAG, "No se pudo crear ni una Application minima");
                             throw new RuntimeException("Unable to create application context");
                         }
                     } catch (Exception contextException) {
@@ -475,6 +477,9 @@ public class BActivityThread extends IBActivityThread.Stub {
             
             mInitialApplication = application;
             BRActivityThread.get(BlackBoxCore.mainThread())._set_mInitialApplication(mInitialApplication);
+            // orden AOSP: LoadedApk.mApplication y mAllApplications apuntan a la Application invitada
+            // antes de instalar providers, para que getApplicationContext() nunca devuelva null/otra
+            bindApplicationToLoadedApk(loadedApk, application);
             ContextCompat.fix((Context) BRActivityThread.get(BlackBoxCore.mainThread()).getSystemContext());
             ContextCompat.fix(mInitialApplication);
             installProviders(mInitialApplication, bindData.processName, bindData.providers);
@@ -949,6 +954,54 @@ public class BActivityThread extends IBActivityThread.Stub {
         }
     }
 
+    /**
+     * Fija la Application invitada en un LoadedApk (mApplication) y en
+     * ActivityThread.mAllApplications. Un LoadedApk distinto del de handleBindApplication
+     * (p. ej. recreado por createPackageContext) tendria mApplication == null y
+     * getApplicationContext() devolveria null a providers y servicios invitados.
+     */
+    private static void bindApplicationToLoadedApk(Object loadedApk, Application application) {
+        if (loadedApk == null || application == null) return;
+        try {
+            if (BRLoadedApk.get(loadedApk).mApplication() != application) {
+                BRLoadedApk.get(loadedApk)._set_mApplication(application);
+            }
+        } catch (Throwable e) {
+            Slog.w(TAG, "No se pudo fijar LoadedApk.mApplication: " + e.getMessage());
+        }
+        try {
+            java.lang.reflect.Field f = BlackBoxCore.mainThread().getClass().getDeclaredField("mAllApplications");
+            {
+                f.setAccessible(true);
+                @SuppressWarnings("unchecked")
+                List<Application> all = (List<Application>) f.get(BlackBoxCore.mainThread());
+                if (all != null && !all.contains(application)) all.add(application);
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** Un contexto de paquete invitado debe resolver getApplicationContext() a la Application invitada. */
+    private static void fixPackageContextApplication(Context context) {
+        try {
+            Application guestApp = getApplication();
+            if (context == null || guestApp == null) return;
+            Context base = context;
+            for (int i = 0; i < 10 && base instanceof ContextWrapper; i++) {
+                base = ((ContextWrapper) base).getBaseContext();
+            }
+            if (base == null) return;
+            Object info = BRContextImpl.get(base).mPackageInfo();
+            if (info == null) return;
+            if (BRLoadedApk.get(info).mApplication() == null
+                    && context.getPackageName().equals(guestApp.getPackageName())) {
+                BRLoadedApk.get(info)._set_mApplication(guestApp);
+            }
+        } catch (Throwable e) {
+            Slog.w(TAG, "fixPackageContextApplication: " + e.getMessage());
+        }
+    }
+
     public static Context createPackageContext(ApplicationInfo info) {
         try {
             return BlackBoxCore.getContext().createPackageContext(info.packageName,
@@ -1279,6 +1332,7 @@ public class BActivityThread extends IBActivityThread.Stub {
                     );
                     
                     
+                    fixPackageContextApplication(packageContext);
                     java.lang.reflect.Method attachBaseContext = Activity.class.getDeclaredMethod("attachBaseContext", Context.class);
                     attachBaseContext.setAccessible(true);
                     attachBaseContext.invoke(activity, packageContext);
