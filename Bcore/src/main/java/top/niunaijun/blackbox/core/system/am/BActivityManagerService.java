@@ -82,7 +82,8 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
 
         for (ResolveInfo resolve : resolves) {
             ProcessRecord processRecord = BProcessManagerService.get().findProcessRecord(resolve.activityInfo.packageName, resolve.activityInfo.processName, userId);
-            if (processRecord == null) {
+            if (processRecord == null || processRecord.bActivityThread == null) {
+                // proceso aun sin hilo registrado (arrancando): el broadcast lo entrega el sistema
                 continue;
             }
             try {
