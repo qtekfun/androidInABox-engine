@@ -84,6 +84,9 @@ public class BlackBoxCore extends ClientConfiguration {
     private static Context sContext;
     
     
+    /** Manejador de excepciones del sistema, guardado antes de que el motor instale los suyos. */
+    public static final Thread.UncaughtExceptionHandler SYSTEM_UNCAUGHT_HANDLER = Thread.getDefaultUncaughtExceptionHandler();
+
     static {
         try {
             

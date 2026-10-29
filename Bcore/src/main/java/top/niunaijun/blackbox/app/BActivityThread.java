@@ -366,6 +366,10 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
 
     public synchronized void handleBindApplication(String packageName, String processName) {
+        // Las apps invitadas deben fallar como en Android: registrar la excepción y terminar el proceso.
+        // Los manejadores del motor que se tragan excepciones dejan el proceso en mal estado
+        // (p. ej. Cronet aborta con "the Java uncaught exception handler did not terminate the process").
+        restoreSystemUncaughtHandler();
         if (isInit())
             return;
         try {
@@ -932,6 +936,19 @@ public class BActivityThread extends IBActivityThread.Stub {
     static boolean isProviderOfProcess(ProviderInfo providerInfo, String processName, String packageName) {
         String providerProcess = providerInfo.processName != null ? providerInfo.processName : packageName;
         return providerProcess.equals(processName);
+    }
+
+    private static void restoreSystemUncaughtHandler() {
+        final Thread.UncaughtExceptionHandler system = BlackBoxCore.SYSTEM_UNCAUGHT_HANDLER;
+        Thread.setDefaultUncaughtExceptionHandler((thread, throwable) -> {
+            Slog.e(TAG, "Excepción no capturada en la app invitada (hilo " + thread.getName() + ")", throwable);
+            if (system != null) {
+                system.uncaughtException(thread, throwable);
+            } else {
+                android.os.Process.killProcess(android.os.Process.myPid());
+                System.exit(10);
+            }
+        });
     }
 
     private static boolean isAntiDetectProvider(String className) {
