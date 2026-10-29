@@ -98,6 +98,8 @@ public class NativeCore {
         return false;
     }
 
+    private static final java.util.concurrent.atomic.AtomicInteger sCrossGuestLogs = new java.util.concurrent.atomic.AtomicInteger();
+
     public static int getCallingUid(int origCallingUid) {
         try {
             
@@ -128,15 +130,13 @@ public class NativeCore {
                 }
                 
                 
-                try {
-                    int callingBUid = BlackBoxCore.getCallingBUid();
-                    if (callingBUid > 0 && callingBUid < Process.LAST_APPLICATION_UID) {
-                        return callingBUid;
-                    }
-                } catch (Exception e) {
-                    Log.w(TAG, "Error getting calling BUid: " + e.getMessage());
+                // Llamada entre procesos invitados: el UID real del llamante es el del host, y es el que
+                // lleva su AttributionSource. callingBUid es el del proceso que lanzó este, no el del
+                // llamante de esta transacción, y hacía fallar enforceCallingUid en los providers.
+                if (sCrossGuestLogs.getAndIncrement() < 5) {
+                    Log.d(TAG, "getCallingUid entre invitados: uid real " + origCallingUid
+                            + ", sin callingBUid obsoleto");
                 }
-                
                 
                 try {
                     StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
