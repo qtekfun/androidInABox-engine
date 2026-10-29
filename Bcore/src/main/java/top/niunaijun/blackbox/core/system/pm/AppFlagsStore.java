@@ -18,6 +18,11 @@ public class AppFlagsStore {
     /** Simular el perfil de propiedades de un Pixel 6 (apagado por defecto). */
     public static final int FLAG_PROPERTY_SPOOF = 1;
 
+    /** Perfil con microG (en vez de GMS real); se guarda bajo el pseudo-paquete PROFILE_KEY. */
+    public static final int FLAG_MICROG = 2;
+    /** Pseudo-paquete para opciones del perfil entero (no es un nombre de paquete válido). */
+    public static final String PROFILE_KEY = "@profile";
+
     private final File mFile;
     private final Map<String, Integer> mFlags = new HashMap<>();
 

@@ -888,6 +888,10 @@ public class IActivityManagerProxy extends ClassInvocationStub {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             String permission = (String) args[0];
+            if (top.niunaijun.blackbox.core.system.pm.MicrogSignatureSpoof.PERM_FAKE_PACKAGE_SIGNATURE.equals(permission)
+                    && IPermissionManagerProxy.declaresFakeSignature(BActivityThread.getAppPackageName())) {
+                return PackageManager.PERMISSION_GRANTED;
+            }
             if (GooglePrivappPermissions.isGrantedPermission(permission)
                     && isGoogleCaller(args)) {
                 return PackageManager.PERMISSION_GRANTED;

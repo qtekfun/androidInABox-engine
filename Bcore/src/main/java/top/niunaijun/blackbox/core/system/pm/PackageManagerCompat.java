@@ -234,6 +234,16 @@ public class PackageManagerCompat {
                 }
             }
         }
+        // microG (ADR-0007): firma falsa solo si el paquete la declara y el perfil está en modo microG.
+        android.content.pm.Signature[] fake = MicrogSignatureSpoof.fakeSignatures(p.mAppMetaData, userId);
+        if (fake != null) {
+            if ((flags & PackageManager.GET_SIGNATURES) != 0) {
+                pi.signatures = fake;
+            }
+            if (BuildCompat.isPie() && (flags & PackageManager.GET_SIGNING_CERTIFICATES) != 0) {
+                pi.signingInfo = SigningCompat.buildSigningInfo(fake, null);
+            }
+        }
         return pi;
     }
 

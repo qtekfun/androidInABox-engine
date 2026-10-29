@@ -11,6 +11,8 @@ import black.android.permission.BRIPermissionManagerStub;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.core.GooglePrivappPermissions;
+import top.niunaijun.blackbox.core.system.pm.MicrogSignatureSpoof;
+import top.niunaijun.blackbox.fake.frameworks.BPackageManager;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.service.base.PkgMethodProxy;
@@ -99,6 +101,14 @@ public class IPermissionManagerProxy extends BinderInvocationStub {
                         }
                     }
                 }
+                if (MicrogSignatureSpoof.PERM_FAKE_PACKAGE_SIGNATURE.equals(permission)) {
+                    if (byUid) {
+                        pkg = BActivityThread.getAppPackageName();
+                    }
+                    if (declaresFakeSignature(pkg)) {
+                        return PackageManager.PERMISSION_GRANTED;
+                    }
+                }
                 if (GooglePrivappPermissions.isGrantedPermission(permission)) {
                     if (byUid) {
                         pkg = BActivityThread.getAppPackageName();
@@ -111,5 +121,15 @@ public class IPermissionManagerProxy extends BinderInvocationStub {
             }
             return method.invoke(who, args);
         }
+    }
+
+    /** microG: el paquete declara "fake-signature" y el perfil actual está en modo microG. */
+    public static boolean declaresFakeSignature(String pkg) {
+        if (pkg == null) return false;
+        int userId = BActivityThread.getUserId();
+        if (!BlackBoxCore.get().isMicrogMode(userId)) return false;
+        android.content.pm.PackageInfo info = BPackageManager.get().getPackageInfo(pkg, PackageManager.GET_META_DATA, userId);
+        return info != null && info.applicationInfo != null && info.applicationInfo.metaData != null
+                && info.applicationInfo.metaData.containsKey(MicrogSignatureSpoof.META_FAKE_SIGNATURE);
     }
 }

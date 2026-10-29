@@ -1043,6 +1043,15 @@ public class BlackBoxCore extends ClientConfiguration {
         getBPackageManager().setAppFlag(packageName, userId, AppFlagsStore.FLAG_PROPERTY_SPOOF, enabled);
     }
 
+    /** Modo microG del perfil: suplantación de firma solo para paquetes que declaran "fake-signature". */
+    public boolean isMicrogMode(int userId) {
+        return getBPackageManager().getAppFlag(AppFlagsStore.PROFILE_KEY, userId, AppFlagsStore.FLAG_MICROG);
+    }
+
+    public void setMicrogMode(int userId, boolean enabled) {
+        getBPackageManager().setAppFlag(AppFlagsStore.PROFILE_KEY, userId, AppFlagsStore.FLAG_MICROG, enabled);
+    }
+
     public static BPackageManager getBPackageManager() {
         return BPackageManager.get();
     }

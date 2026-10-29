@@ -602,6 +602,11 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         }
     }
 
+    /** Modo microG del perfil (ADR-0007). */
+    public boolean isMicrogProfile(int userId) {
+        return mAppFlags.get(AppFlagsStore.PROFILE_KEY, userId, AppFlagsStore.FLAG_MICROG);
+    }
+
     @Override
     public boolean getAppFlag(String packageName, int userId, int flag) {
         return mAppFlags.get(packageName, userId, flag);
