@@ -124,29 +124,32 @@ public class BroadcastManager implements PackageMonitor {
     @Override
     public void onPackageUninstalled(String packageName, boolean removeApp, int userId) {
         if (removeApp) {
-            synchronized (mReceivers) {
-                List<BroadcastReceiver> broadcastReceivers = mReceivers.get(packageName);
-                if (broadcastReceivers != null) {
-                    Slog.d(TAG, "unregisterReceiver Package: " + packageName + ", size: " + broadcastReceivers.size());
-                    for (BroadcastReceiver broadcastReceiver : broadcastReceivers) {
-                        try {
-                            BlackBoxCore.getContext().unregisterReceiver(broadcastReceiver);
-                        } catch (Throwable ignored) {
-                        }
-                    }
-                }
-                mReceivers.remove(packageName);
-            }
+            refreshPackage(packageName);
         }
     }
 
     @Override
     public void onPackageInstalled(String packageName, int userId) {
+        refreshPackage(packageName);
+    }
+
+    /** Re-registra los receivers del paquete con las copias que queden en los perfiles (ADR-0008). */
+    private void refreshPackage(String packageName) {
+        // Antes de tomar mReceivers: el servicio de paquetes puede llamar con su cerrojo tomado
+        List<BPackageSettings> copies = mPms.getBPackageCopies(packageName);
         synchronized (mReceivers) {
-            mReceivers.remove(packageName);
-            BPackageSettings bPackageSetting = mPms.getBPackageSetting(packageName);
-            if (bPackageSetting != null) {
-                registerPackage(bPackageSetting.pkg);
+            List<BroadcastReceiver> broadcastReceivers = mReceivers.remove(packageName);
+            if (broadcastReceivers != null) {
+                Slog.d(TAG, "unregisterReceiver Package: " + packageName + ", size: " + broadcastReceivers.size());
+                for (BroadcastReceiver broadcastReceiver : broadcastReceivers) {
+                    try {
+                        BlackBoxCore.getContext().unregisterReceiver(broadcastReceiver);
+                    } catch (Throwable ignored) {
+                    }
+                }
+            }
+            for (BPackageSettings copy : copies) {
+                registerPackage(copy.pkg);
             }
         }
     }

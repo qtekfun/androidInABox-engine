@@ -20,6 +20,8 @@ import top.niunaijun.blackbox.utils.FileUtils;
 public class BPackageSettings implements Parcelable {
     public BPackage pkg;
     public int appId;
+    /** Perfil dueño de esta copia (ADR-0008); userState solo contiene a este perfil. */
+    public int userId;
     public InstallOption installOption;
     public Map<Integer, BPackageUserState> userState = new HashMap<>();
     static final BPackageUserState DEFAULT_USER_STATE = new BPackageUserState();
@@ -89,9 +91,10 @@ public class BPackageSettings implements Parcelable {
     public boolean save() {
         synchronized (this) {
             Parcel parcel = Parcel.obtain();
-            AtomicFile atomicFile = new AtomicFile(BEnvironment.getPackageConf(pkg.packageName));
+            AtomicFile atomicFile = new AtomicFile(BEnvironment.getPackageConf(userId, pkg.packageName));
             FileOutputStream fileOutputStream = null;
             try {
+                FileUtils.mkdirs(BEnvironment.getAppDir(userId, pkg.packageName));
                 writeToParcel(parcel, 0);
                 parcel.setDataPosition(0);
                 fileOutputStream = atomicFile.startWrite();
@@ -117,6 +120,7 @@ public class BPackageSettings implements Parcelable {
     /**
      * Formato v1: cabecera, appId, installOption, estados de usuario y, AL FINAL, el BPackage.
      * Así, si el BPackage ya no se puede leer, el resto de datos sigue recuperable.
+     * v2 (ADR-0008): tras el BPackage, el perfil dueño de la copia.
      * Nuevos campos solo al final y protegidos por version (ver PersistFormat).
      */
     @Override
@@ -130,6 +134,7 @@ public class BPackageSettings implements Parcelable {
             dest.writeParcelable(entry.getValue(), flags);
         }
         dest.writeParcelable(this.pkg, flags);
+        dest.writeInt(this.userId);
     }
 
     /** Error al leer el BPackage (si es null, se leyó entero). Solo con {@link #readLenient}. */
@@ -168,6 +173,9 @@ public class BPackageSettings implements Parcelable {
         readRest(in);
         try {
             this.pkg = in.readParcelable(BPackage.class.getClassLoader());
+            if (version >= 2) {
+                this.userId = in.readInt();
+            }
         } catch (Throwable t) {
             if (!lenient) throw t;
             this.pkg = null;

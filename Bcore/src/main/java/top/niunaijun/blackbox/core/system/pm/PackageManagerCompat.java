@@ -331,7 +331,7 @@ public class PackageManagerCompat {
         }
         ai.dataDir = BEnvironment.getDataDir(ai.packageName, userId).getAbsolutePath();
         if (!p.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {
-            ai.nativeLibraryDir = BEnvironment.getAppLibDir(ai.packageName).getAbsolutePath();
+            ai.nativeLibraryDir = BEnvironment.getAppLibDir(userId, ai.packageName).getAbsolutePath();
         }
         ai.processName = BPackageManagerService.fixProcessName(p.packageName, ai.packageName);
         ai.publicSourceDir = sourceDir;
@@ -469,15 +469,11 @@ public class PackageManagerCompat {
     }
 
     public static Resources getResources(Context context, ApplicationInfo appInfo) {
-        BPackageSettings ps = BPackageManagerService.get().getBPackageSetting(appInfo.packageName);
-        if (ps != null) {
+        // El ApplicationInfo ya viene de la copia del perfil que llama
+        if (appInfo.sourceDir != null) {
             AssetManager assets = BRAssetManager.get()._new();
-            BRAssetManager.get(assets).addAssetPath(ps.pkg.baseCodePath);
-            if (ps.pkg.splitCodePaths != null) {
-                for (String split : ps.pkg.splitCodePaths) {
-                    BRAssetManager.get(assets).addAssetPath(split);
-                }
-            } else if (appInfo.splitSourceDirs != null) {
+            BRAssetManager.get(assets).addAssetPath(appInfo.sourceDir);
+            if (appInfo.splitSourceDirs != null) {
                 for (String split : appInfo.splitSourceDirs) {
                     BRAssetManager.get(assets).addAssetPath(split);
                 }

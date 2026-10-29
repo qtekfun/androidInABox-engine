@@ -12,7 +12,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Persistencia de los splits instalados en {@code data/app/<pkg>/splits.conf}: texto UTF-8,
+ * Persistencia de los splits instalados en {@code data/user_app/<perfil>/<pkg>/splits.conf}: texto UTF-8,
  * una línea por split y en orden, {@code nombre<TAB>fichero}. El fichero es relativo al
  * directorio de la app (o absoluto). Vive aparte de {@code package.conf} para no cambiar su
  * formato parcelable: si falta, el paquete se trata como sin splits.

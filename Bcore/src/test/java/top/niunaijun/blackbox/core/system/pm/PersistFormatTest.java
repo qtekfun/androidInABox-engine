@@ -22,6 +22,7 @@ public class PersistFormatTest {
     @Test
     public void conMarcaLeeLaVersion() {
         assertEquals(1, PersistFormat.resolveVersion(PersistFormat.MAGIC, 1));
+        assertEquals(PersistFormat.VERSION_ACTUAL, PersistFormat.resolveVersion(PersistFormat.MAGIC, PersistFormat.VERSION_ACTUAL));
         assertTrue(PersistFormat.hasHeader(PersistFormat.MAGIC));
     }
 

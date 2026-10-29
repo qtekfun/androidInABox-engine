@@ -7,17 +7,20 @@ import android.os.Parcel;
 import android.os.Process;
 import android.util.ArrayMap;
 import android.util.AtomicFile;
+import android.util.SparseArray;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
+import top.niunaijun.blackbox.core.system.pm.installer.ApkDedup;
 import top.niunaijun.blackbox.core.system.pm.split.SplitsConf;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
 import top.niunaijun.blackbox.core.GooglePrivappPermissions;
@@ -30,8 +33,10 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
  class Settings {
     public static final String TAG = "Settings";
 
-    final ArrayMap<String, BPackageSettings> mPackages = new ArrayMap<>();
+    /** Copias instaladas por perfil (ADR-0008): userId -> nombre de paquete -> ajustes. También es el cerrojo. */
+    final SparseArray<ArrayMap<String, BPackageSettings>> mPackages = new SparseArray<>();
     private final Map<String, Integer> mAppIds = new HashMap<>();
+    private final Map<String, Integer> mAppIdByName = new java.util.concurrent.ConcurrentHashMap<>();
     private final Map<String, SharedUserSetting> mSharedUsers = SharedUserSetting.sSharedUsers;
     private int mCurrUid = 0;
 
@@ -42,9 +47,79 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         }
     }
 
-    BPackageSettings getPackageLPw(String name, PackageParser.Package aPackage, InstallOption installOption) {
-        BPackageSettings pkgSettings;
+    BPackageSettings getPackage(int userId, String name) {
+        synchronized (mPackages) {
+            ArrayMap<String, BPackageSettings> map = mPackages.get(userId);
+            return map == null ? null : map.get(name);
+        }
+    }
+
+    /** Copias de un perfil. */
+    List<BPackageSettings> getPackages(int userId) {
+        synchronized (mPackages) {
+            ArrayMap<String, BPackageSettings> map = mPackages.get(userId);
+            return map == null ? new ArrayList<>() : new ArrayList<>(map.values());
+        }
+    }
+
+    /** Copias de todos los perfiles. */
+    List<BPackageSettings> getAllPackages() {
+        synchronized (mPackages) {
+            List<BPackageSettings> all = new ArrayList<>();
+            for (int i = 0; i < mPackages.size(); i++) {
+                all.addAll(mPackages.valueAt(i).values());
+            }
+            return all;
+        }
+    }
+
+    /** Copias de un paquete en todos los perfiles. */
+    List<BPackageSettings> getPackageCopies(String name) {
+        synchronized (mPackages) {
+            List<BPackageSettings> copies = new ArrayList<>();
+            for (int i = 0; i < mPackages.size(); i++) {
+                BPackageSettings ps = mPackages.valueAt(i).get(name);
+                if (ps != null) copies.add(ps);
+            }
+            return copies;
+        }
+    }
+
+    void putPackage(BPackageSettings ps) {
+        synchronized (mPackages) {
+            ArrayMap<String, BPackageSettings> map = mPackages.get(ps.userId);
+            if (map == null) {
+                map = new ArrayMap<>();
+                mPackages.put(ps.userId, map);
+            }
+            map.put(ps.pkg.packageName, ps);
+            mAppIdByName.put(ps.pkg.packageName, ps.appId);
+        }
+    }
+
+    BPackageSettings removePackage(int userId, String name) {
+        synchronized (mPackages) {
+            ArrayMap<String, BPackageSettings> map = mPackages.get(userId);
+            BPackageSettings removed = map == null ? null : map.remove(name);
+            if (getPackageCopies(name).isEmpty()) {
+                mAppIdByName.remove(name);
+            }
+            return removed;
+        }
+    }
+
+    /**
+     * El appId es del paquete, no de la copia: todas las copias de un nombre comparten uid. Sin
+     * cerrojo (lo consulta el gestor de procesos), a partir de la caché que mantiene putPackage.
+     */
+    int getAppId(String name) {
+        Integer appId = mAppIdByName.get(name);
+        return appId != null ? appId : -1;
+    }
+
+    BPackageSettings getPackageLPw(String name, PackageParser.Package aPackage, InstallOption installOption, int userId) {
         BPackageSettings origSettings = new BPackageSettings();
+        origSettings.userId = userId;
         if (installOption != null && GooglePrivappPermissions.isGooglePackage(name)) {
             // GMS, GSF y Play Store se ven como apps de sistema privilegiadas dentro del box
             installOption.makePrivilegedVirtual();
@@ -53,12 +128,15 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         origSettings.pkg.installOption = installOption;
         origSettings.installOption = installOption;
         origSettings.pkg.mExtras = origSettings;
-        origSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(origSettings.pkg, 0, BPackageUserState.create(), 0);
+        origSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(origSettings.pkg, 0, BPackageUserState.create(), userId);
         synchronized (mPackages) {
-            pkgSettings = mPackages.get(name);
-            if (pkgSettings != null) {
-                origSettings.appId = pkgSettings.appId;
-                origSettings.userState = pkgSettings.userState;
+            BPackageSettings same = getPackage(userId, name);
+            int appId = getAppId(name);
+            if (same != null) {
+                origSettings.userState = same.userState;
+            }
+            if (appId > 0) {
+                origSettings.appId = appId;
             } else {
                 boolean b = registerAppIdLPw(origSettings);
                 if (!b) {
@@ -122,12 +200,8 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         FileOutputStream fileOutputStream = null;
         AtomicFile atomicFile = new AtomicFile(BEnvironment.getUidConf());
         try {
-            Set<String> pkgName = mPackages.keySet();
-            for (String s : new HashSet<>(mAppIds.keySet())) {
-                if (!pkgName.contains(s)) {
-                    mAppIds.remove(s);
-                }
-            }
+            // No se podan los ids de paquetes sin copia cargada: durante el arranque y la migración
+            // aún no están todas, y reinstalar un paquete debe conservar su uid.
             parcel.writeInt(mCurrUid);
             parcel.writeMap(mAppIds);
 
@@ -181,36 +255,134 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
 
     public void scanPackage() {
         synchronized (mPackages) {
-            File appRootDir = BEnvironment.getAppRootDir();
-            FileUtils.mkdirs(appRootDir);
-            File[] apps = appRootDir.listFiles();
-            for (File app : apps) {
-                if (!app.isDirectory()) {
+            migrateLegacyLP();
+            File root = BEnvironment.getUserAppsRoot();
+            FileUtils.mkdirs(root);
+            File[] users = root.listFiles();
+            if (users == null) return;
+            for (File userDir : users) {
+                int userId;
+                try {
+                    userId = Integer.parseInt(userDir.getName());
+                } catch (NumberFormatException e) {
                     continue;
                 }
-                scanPackage(app.getName());
+                File[] apps = userDir.listFiles();
+                if (apps == null) continue;
+                for (File app : apps) {
+                    if (app.isDirectory()) {
+                        updatePackageLP(userId, app, false);
+                    }
+                }
             }
         }
     }
 
-    public void scanPackage(String packageName) {
+    public void scanPackage(int userId, String packageName) {
         synchronized (mPackages) {
-            updatePackageLP(BEnvironment.getAppDir(packageName));
+            updatePackageLP(userId, BEnvironment.getAppDir(userId, packageName), false);
         }
     }
 
     /**
-     * Carga un paquete persistido. Si los metadatos no se pueden leer (p. ej. cambió el formato
-     * del parcel) NUNCA se borra nada: se reconstruyen desde el APK instalado. Solo se descarta
-     * el paquete si su APK realmente no existe.
+     * Crea la copia de un paquete para otro perfil a partir de la copia de origen: los APK y las libs
+     * se enlazan (no se copian) y la copia nueva se reconstruye con rutas propias.
      */
-    private void updatePackageLP(File app) {
+    BPackageSettings cloneForUserLP(BPackageSettings source, int userId) throws Exception {
+        String packageName = source.pkg.packageName;
+        File srcDir = BEnvironment.getAppDir(source.userId, packageName);
+        File dstDir = BEnvironment.getAppDir(userId, packageName);
+        FileUtils.deleteDir(dstDir);
+        FileUtils.mkdirs(dstDir);
+        ApkDedup.linkTree(srcDir, dstDir);
+        updatePackageLP(userId, dstDir, true);
+        return getPackage(userId, packageName);
+    }
+
+    /**
+     * Migra el formato anterior (una copia compartida en data/app/<pkg>) a una copia por perfil
+     * instalado. Los ficheros se enlazan (hard link) en vez de copiarse y los datos de las apps no
+     * se tocan. La carpeta antigua solo se borra cuando TODAS las copias nuevas se han cargado; si
+     * algo falla se conserva y se reintenta en el siguiente arranque.
+     */
+    private void migrateLegacyLP() {
+        File[] apps = BEnvironment.getLegacyAppRootDir().listFiles();
+        if (apps == null) return;
+        for (File app : apps) {
+            if (!app.isDirectory()) continue;
+            String packageName = app.getName();
+            try {
+                List<Integer> users = legacyInstalledUsers(app);
+                boolean ok = true;
+                for (int userId : users) {
+                    File dst = BEnvironment.getAppDir(userId, packageName);
+                    if (BEnvironment.getPackageConf(userId, packageName).isFile()) {
+                        continue;
+                    }
+                    try {
+                        FileUtils.mkdirs(dst);
+                        ApkDedup.linkTree(app, dst);
+                        updatePackageLP(userId, dst, true);
+                        if (getPackage(userId, packageName) == null) {
+                            ok = false;
+                        }
+                    } catch (Throwable t) {
+                        ok = false;
+                        Slog.e(TAG, "PERSIST_MIGRATE_FAIL " + packageName + " perfil " + userId, t);
+                    }
+                }
+                if (ok) {
+                    FileUtils.deleteDir(app);
+                    Slog.w(TAG, "PERSIST_MIGRATED " + packageName + ": copias por perfil " + users);
+                } else {
+                    Slog.e(TAG, "PERSIST_MIGRATE_KEPT " + packageName + ": se conserva la copia antigua");
+                }
+            } catch (Throwable t) {
+                Slog.e(TAG, "PERSIST_MIGRATE_FAIL " + packageName + ": se conserva la copia antigua", t);
+            }
+        }
+    }
+
+    /** Perfiles con el paquete instalado según el package.conf antiguo; si no se lee, los que tienen datos. */
+    private List<Integer> legacyInstalledUsers(File app) {
+        String packageName = app.getName();
+        List<Integer> users = new ArrayList<>();
+        Parcel in = Parcel.obtain();
+        try {
+            byte[] bytes = FileUtils.toByteArray(new File(app, "package.conf"));
+            in.unmarshall(bytes, 0, bytes.length);
+            in.setDataPosition(0);
+            BPackageSettings partial = BPackageSettings.readLenient(in);
+            for (Map.Entry<Integer, BPackageUserState> e : partial.userState.entrySet()) {
+                if (e.getValue() != null && e.getValue().installed) {
+                    users.add(e.getKey());
+                }
+            }
+        } catch (Throwable t) {
+            Slog.w(TAG, "package.conf antiguo ilegible: " + packageName + ", se infieren los perfiles", t);
+        } finally {
+            in.recycle();
+        }
+        if (users.isEmpty()) {
+            users = PersistFormat.assumeInstalledUsers(candidateUserIds(),
+                    id -> BEnvironment.getDataDir(packageName, id).exists());
+        }
+        return users;
+    }
+
+    /**
+     * Carga una copia persistida. Si los metadatos no se pueden leer (p. ej. cambió el formato
+     * del parcel) NUNCA se borra nada: se reconstruyen desde el APK instalado. Solo se descarta
+     * la copia si su APK realmente no existe. Con forceRecover (migración) los metadatos antiguos
+     * apuntan a rutas de la carpeta antigua, así que se reconstruye siempre desde el APK.
+     */
+    private void updatePackageLP(int userId, File app, boolean forceRecover) {
         String packageName = app.getName();
         BPackageSettings partial = null;
         Throwable error = null;
         Parcel in = Parcel.obtain();
         try {
-            byte[] bytes = FileUtils.toByteArray(BEnvironment.getPackageConf(packageName));
+            byte[] bytes = FileUtils.toByteArray(BEnvironment.getPackageConf(userId, packageName));
             in.unmarshall(bytes, 0, bytes.length);
             in.setDataPosition(0);
             partial = BPackageSettings.readLenient(in);
@@ -226,41 +398,48 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
             in.recycle();
         }
 
-        if (error == null) {
+        if (error == null && !forceRecover) {
             try {
-                finishLoadPackageLP(app, partial);
+                finishLoadPackageLP(userId, app, partial);
                 return;
             } catch (Throwable e) {
                 error = e;
             }
         }
 
-        Slog.e(TAG, "PERSIST_READ_FAIL " + packageName + ": metadatos ilegibles, se conservan los ficheros e intento recuperar desde el APK", error);
+        if (!forceRecover) {
+            Slog.e(TAG, "PERSIST_READ_FAIL " + packageName + " perfil " + userId + ": metadatos ilegibles, se conservan los ficheros e intento recuperar desde el APK", error);
+        }
         try {
-            BPackageSettings recovered = recoverPackageLP(app, partial);
-            finishLoadPackageLP(app, recovered);
-            Slog.w(TAG, "PERSIST_RECOVERED " + packageName + ": reconstruido desde el APK instalado");
+            BPackageSettings recovered = recoverPackageLP(userId, app, partial);
+            finishLoadPackageLP(userId, app, recovered);
+            Slog.w(TAG, "PERSIST_RECOVERED " + packageName + " perfil " + userId + ": reconstruido desde el APK instalado");
             return;
         } catch (Throwable e) {
-            Slog.e(TAG, "PERSIST_RECOVER_FAIL " + packageName, e);
+            Slog.e(TAG, "PERSIST_RECOVER_FAIL " + packageName + " perfil " + userId, e);
         }
 
-        if (!hasInstalledApk(app, partial)) {
-            Slog.e(TAG, "PERSIST_APK_MISSING " + packageName + ": el APK no existe, se descarta el paquete");
+        if (!hasInstalledApk(userId, app, partial)) {
+            Slog.e(TAG, "PERSIST_APK_MISSING " + packageName + " perfil " + userId + ": el APK no existe, se descarta la copia");
             FileUtils.deleteDir(app);
-            removePackage(packageName);
-            BProcessManagerService.get().killAllByPackageName(packageName);
-            BPackageManagerService.get().onPackageUninstalled(packageName, true, BUserHandle.USER_ALL);
+            removePackage(userId, packageName);
+            BProcessManagerService.get().killPackageAsUser(packageName, userId);
+            BPackageManagerService.get().onPackageUninstalled(packageName, true, userId);
         } else {
             // El APK existe pero no se pudo cargar: no se toca nada; se reintentará en el próximo arranque.
-            Slog.e(TAG, "PERSIST_KEPT " + packageName + ": no cargado, ficheros y datos intactos");
+            Slog.e(TAG, "PERSIST_KEPT " + packageName + " perfil " + userId + ": no cargado, ficheros y datos intactos");
         }
     }
 
-    private void finishLoadPackageLP(File app, BPackageSettings bPackageSettings) throws Exception {
+    private void finishLoadPackageLP(int userId, File app, BPackageSettings bPackageSettings) throws Exception {
         String packageName = app.getName();
+        bPackageSettings.userId = userId;
+        // La copia solo conoce a su perfil; un estado multiperfil (formato antiguo) se reduce al propio
+        BPackageUserState own = bPackageSettings.userState != null ? bPackageSettings.userState.get(userId) : null;
+        bPackageSettings.userState = new HashMap<>();
+        bPackageSettings.userState.put(userId, own != null ? own : BPackageUserState.create());
         bPackageSettings.pkg.mExtras = bPackageSettings;
-        SplitsConf splits = SplitsConf.read(BEnvironment.getSplitsConf(packageName), app);
+        SplitsConf splits = SplitsConf.read(BEnvironment.getSplitsConf(userId, packageName), app);
         if (!splits.names.isEmpty()) {
             bPackageSettings.pkg.splitNames = splits.names;
             bPackageSettings.pkg.splitCodePaths = splits.codePaths;
@@ -271,18 +450,19 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
             if (!currPackageSourcePath.equals(bPackageSettings.pkg.baseCodePath)
                     || PackageManagerCompat.hostSplitsChanged(packageInfo.applicationInfo, bPackageSettings.pkg.applicationInfo)) {
 
-                BProcessManagerService.get().killAllByPackageName(bPackageSettings.pkg.packageName);
-                BPackageSettings newPkg = reInstallBySystem(packageInfo, bPackageSettings.installOption);
+                BProcessManagerService.get().killPackageAsUser(bPackageSettings.pkg.packageName, userId);
+                BPackageSettings newPkg = reInstallBySystem(packageInfo, bPackageSettings.installOption, userId);
                 bPackageSettings.pkg = newPkg.pkg;
+                bPackageSettings.pkg.mExtras = bPackageSettings;
             } else {
                 PackageManagerCompat.adoptHostSplits(bPackageSettings.pkg, packageInfo.applicationInfo);
             }
         } else {
-            bPackageSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(bPackageSettings.pkg, 0, BPackageUserState.create(), 0);
+            bPackageSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(bPackageSettings.pkg, 0, BPackageUserState.create(), userId);
         }
         bPackageSettings.save();
-        mPackages.put(bPackageSettings.pkg.packageName, bPackageSettings);
-        Slog.d(TAG, "loaded Package: " + packageName);
+        putPackage(bPackageSettings);
+        Slog.d(TAG, "loaded Package: " + packageName + " perfil " + userId);
     }
 
     private boolean isSystemOption(BPackageSettings partial) {
@@ -299,8 +479,8 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
     }
 
     /** Ruta del APK base: el del box (base.apk) o, si es un paquete del host, el del host. */
-    private String findBaseApk(File app, BPackageSettings partial) {
-        File base = BEnvironment.getBaseApkDir(app.getName());
+    private String findBaseApk(int userId, File app, BPackageSettings partial) {
+        File base = BEnvironment.getBaseApkDir(userId, app.getName());
         if (!isSystemOption(partial) && base.isFile()) {
             return base.getAbsolutePath();
         }
@@ -313,21 +493,21 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         return base.isFile() ? base.getAbsolutePath() : null;
     }
 
-    private boolean hasInstalledApk(File app, BPackageSettings partial) {
-        return findBaseApk(app, partial) != null;
+    private boolean hasInstalledApk(int userId, File app, BPackageSettings partial) {
+        return findBaseApk(userId, app, partial) != null;
     }
 
     /**
      * Reconstruye el BPackage reparseando base.apk (y los splits de splits.conf), conservando
      * las banderas de instalación y el estado por usuario si eran legibles; si no, se infieren.
      */
-    private BPackageSettings recoverPackageLP(File app, BPackageSettings partial) throws Exception {
+    private BPackageSettings recoverPackageLP(int userId, File app, BPackageSettings partial) throws Exception {
         String packageName = app.getName();
-        String apkPath = findBaseApk(app, partial);
+        String apkPath = findBaseApk(userId, app, partial);
         if (apkPath == null) {
             throw new java.io.FileNotFoundException("APK no encontrado para " + packageName);
         }
-        boolean inAppDir = apkPath.equals(BEnvironment.getBaseApkDir(packageName).getAbsolutePath());
+        boolean inAppDir = apkPath.equals(BEnvironment.getBaseApkDir(userId, packageName).getAbsolutePath());
         PackageInfo host = inAppDir ? null : hostPackageInfo(packageName);
 
         InstallOption option = partial != null ? partial.installOption : null;
@@ -343,7 +523,7 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         if (host != null) {
             aPackage.applicationInfo = host.applicationInfo;
         }
-        BPackageSettings ps = getPackageLPw(packageName, aPackage, option);
+        BPackageSettings ps = getPackageLPw(packageName, aPackage, option, userId);
         if (host != null) {
             PackageManagerCompat.adoptHostSplits(ps.pkg, aPackage.applicationInfo);
         }
@@ -355,10 +535,7 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
             ps.userState = partial.userState;
         } else {
             ps.userState = new HashMap<>();
-            for (int userId : PersistFormat.assumeInstalledUsers(candidateUserIds(),
-                    id -> BEnvironment.getDataDir(packageName, id).exists())) {
-                ps.setInstalled(true, userId);
-            }
+            ps.setInstalled(true, userId);
         }
         return ps;
     }
@@ -377,20 +554,16 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
         return ids;
     }
 
-    private BPackageSettings reInstallBySystem(PackageInfo systemPackageInfo, InstallOption option) throws Exception {
+    private BPackageSettings reInstallBySystem(PackageInfo systemPackageInfo, InstallOption option, int userId) throws Exception {
         Slog.d(TAG, "reInstallBySystem: " + systemPackageInfo.packageName);
         PackageParser.Package aPackage = parserApk(systemPackageInfo.applicationInfo.sourceDir);
         if (aPackage == null) {
             throw new RuntimeException("parser apk error.");
         }
         aPackage.applicationInfo = BlackBoxCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
-        BPackageSettings ps = getPackageLPw(aPackage.packageName, aPackage, option);
+        BPackageSettings ps = getPackageLPw(aPackage.packageName, aPackage, option, userId);
         PackageManagerCompat.adoptHostSplits(ps.pkg, aPackage.applicationInfo);
         return ps;
-    }
-
-    public void removePackage(String packageName) {
-        mPackages.remove(packageName);
     }
 
     private PackageParser.Package parserApk(String file) {

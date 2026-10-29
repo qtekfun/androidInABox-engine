@@ -43,8 +43,8 @@ public class BEnvironment {
         return new File(sVirtualRoot, "cache");
     }
 
-    public static File getSplitsConf(String packageName) {
-        return new File(getAppDir(packageName), "splits.conf");
+    public static File getSplitsConf(int userId, String packageName) {
+        return new File(getAppDir(userId, packageName), "splits.conf");
     }
 
     public static File getUserInfoConf() {
@@ -75,8 +75,8 @@ public class BEnvironment {
         return new File(getSystemDir(), "fake-location.conf");
     }
 
-    public static File getPackageConf(String packageName) {
-        return new File(getAppDir(packageName), "package.conf");
+    public static File getPackageConf(int userId, String packageName) {
+        return new File(getAppDir(userId, packageName), "package.conf");
     }
 
     public static File getExternalUserDir(int userId) {
@@ -135,20 +135,35 @@ public class BEnvironment {
         return new File(getDataDir(packageName, userId), "databases");
     }
 
-    public static File getAppRootDir() {
-        return getAppDir("");
+    /** Raíz de las copias de apps de un perfil (ADR-0008): cada perfil tiene su propio APK, splits y libs. */
+    public static File getAppRootDir(int userId) {
+        return new File(sVirtualRoot, "data/user_app/" + userId);
     }
 
-    public static File getAppDir(String packageName) {
-        return new File(sVirtualRoot, "data/app/" + packageName);
+    /** Raíz de los perfiles con apps instaladas. */
+    public static File getUserAppsRoot() {
+        return new File(sVirtualRoot, "data/user_app");
     }
 
-    public static File getBaseApkDir(String packageName) {
-        return new File(sVirtualRoot, "data/app/" + packageName + "/base.apk");
+    public static File getAppDir(int userId, String packageName) {
+        return new File(getAppRootDir(userId), packageName);
     }
 
-    public static File getAppLibDir(String packageName) {
-        return new File(getAppDir(packageName), "lib");
+    public static File getBaseApkDir(int userId, String packageName) {
+        return new File(getAppDir(userId, packageName), "base.apk");
+    }
+
+    public static File getAppLibDir(int userId, String packageName) {
+        return new File(getAppDir(userId, packageName), "lib");
+    }
+
+    /** Formato anterior a ADR-0008: una sola copia por paquete compartida por todos los perfiles. Solo para migrar. */
+    public static File getLegacyAppRootDir() {
+        return new File(sVirtualRoot, "data/app");
+    }
+
+    public static File getLegacyAppDir(String packageName) {
+        return new File(getLegacyAppRootDir(), packageName);
     }
 
     public static File getXSharedPreferences(String packageName, String prefFileName) {
