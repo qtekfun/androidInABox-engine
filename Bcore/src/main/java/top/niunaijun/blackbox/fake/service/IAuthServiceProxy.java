@@ -3,6 +3,7 @@ package top.niunaijun.blackbox.fake.service;
 import java.lang.reflect.Method;
 
 import black.android.os.BRServiceManager;
+import top.niunaijun.blackbox.fake.hook.ProxyMethod;
 import top.niunaijun.blackbox.fake.hook.BinderInvocationStub;
 import top.niunaijun.blackbox.fake.hook.MethodHook;
 import top.niunaijun.blackbox.utils.MethodParameterUtils;
@@ -25,8 +26,9 @@ public class IAuthServiceProxy extends BinderInvocationStub {
     @Override
     protected Object getWho() {
         try {
-            return Reflector.on("android.hardware.biometrics.IAuthService$Stub")
-                    .call("asInterface", BRServiceManager.get().getService(SERVICE));
+            android.os.IBinder binder = BRServiceManager.get().getService(SERVICE);
+            Class<?> stub = Class.forName("android.hardware.biometrics.IAuthService$Stub");
+            return stub.getMethod("asInterface", android.os.IBinder.class).invoke(null, binder);
         } catch (Throwable t) {
             Slog.w(TAG, "IAuthService no disponible: " + t);
             return null;
@@ -69,6 +71,27 @@ public class IAuthServiceProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
             MethodParameterUtils.replaceAllAppPkg(args);
             return method.invoke(who, args);
+        }
+    }
+
+    /**
+     * BiometricPrompt obtiene IAuthService directamente al crearse y no pasa por este proxy, así que el
+     * sistema real vería al invitado pidiendo biometría con un paquete que no es el del UID. Se informa de
+     * que no hay hardware biométrico: las apps (p. ej. GMS al iniciar sesión) no lanzan el diálogo.
+     */
+    @ProxyMethod("canAuthenticate")
+    public static class CanAuthenticate extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return 12; // BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE
+        }
+    }
+
+    @ProxyMethod("hasEnrolledBiometrics")
+    public static class HasEnrolledBiometrics extends MethodHook {
+        @Override
+        protected Object hook(Object who, Method method, Object[] args) throws Throwable {
+            return false;
         }
     }
 }
