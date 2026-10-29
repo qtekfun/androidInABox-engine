@@ -28,6 +28,7 @@ public class ServiceManager {
     public static final String ACCOUNT_MANAGER = "account_manager";
     public static final String LOCATION_MANAGER = "location_manager";
     public static final String NOTIFICATION_MANAGER = "notification_manager";
+    public static final String COMPANION_DEVICE = "companion_device";
 
     private final Map<String, IBinder> mCaches = new HashMap<>();
 
@@ -56,6 +57,7 @@ public class ServiceManager {
         mCaches.put(ACCOUNT_MANAGER, BAccountManagerService.get());
         mCaches.put(LOCATION_MANAGER, BLocationManagerService.get());
         mCaches.put(NOTIFICATION_MANAGER, BNotificationManagerService.get());
+        mCaches.put(COMPANION_DEVICE, top.niunaijun.blackbox.core.system.companion.BCompanionDeviceService.get());
     }
 
     public IBinder getServiceInternal(String name) {
@@ -72,5 +74,6 @@ public class ServiceManager {
         BlackBoxCore.get().getService(ACCOUNT_MANAGER);
         BlackBoxCore.get().getService(LOCATION_MANAGER);
         BlackBoxCore.get().getService(NOTIFICATION_MANAGER);
+        BlackBoxCore.get().getService(COMPANION_DEVICE);
     }
 }

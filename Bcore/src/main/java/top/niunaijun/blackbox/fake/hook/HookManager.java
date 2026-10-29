@@ -8,6 +8,7 @@ import java.util.Map;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.fake.delegate.AppInstrumentation;
 
+import black.android.os.BRServiceManager;
 import top.niunaijun.blackbox.fake.service.HCallbackProxy;
 import top.niunaijun.blackbox.fake.service.IAccessibilityManagerProxy;
 import top.niunaijun.blackbox.fake.service.IAccountManagerProxy;
@@ -112,6 +113,9 @@ public class HookManager {
             addInjector(new HCallbackProxy());
             addInjector(new IAppOpsManagerProxy());
             addInjector(new INotificationManagerProxy());
+            if (BuildCompat.isOreo() && BRServiceManager.get().getService(android.content.Context.COMPANION_DEVICE_SERVICE) != null) {
+                addInjector(new top.niunaijun.blackbox.fake.service.ICompanionDeviceManagerProxy());
+            }
             addInjector(new IAlarmManagerProxy());
             addInjector(new IAppWidgetManagerProxy());
             addInjector(new ContentServiceStub());
