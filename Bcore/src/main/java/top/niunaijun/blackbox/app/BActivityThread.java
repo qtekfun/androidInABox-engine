@@ -924,6 +924,16 @@ public class BActivityThread extends IBActivityThread.Stub {
      * Check if a ContentProvider is a known anti-virtual-environment detector.
      * These providers detect sandboxed environments and force-kill the app.
      */
+    /**
+     * Igual que en Android: en cada proceso solo se instalan sus propios providers.
+     * Sin android:process, el provider es del proceso principal (el del paquete); los
+     * multiprocess no se instalan al arrancar, se crean bajo demanda.
+     */
+    static boolean isProviderOfProcess(ProviderInfo providerInfo, String processName, String packageName) {
+        String providerProcess = providerInfo.processName != null ? providerInfo.processName : packageName;
+        return providerProcess.equals(processName);
+    }
+
     private static boolean isAntiDetectProvider(String className) {
         String lower = className.toLowerCase();
         // Meituan Hades anti-cheat
@@ -981,8 +991,7 @@ public class BActivityThread extends IBActivityThread.Stub {
         try {
             for (ProviderInfo providerInfo : providers) {
                 try {
-                    if (processName.equals(providerInfo.processName) ||
-                            providerInfo.processName.equals(context.getPackageName()) || providerInfo.multiprocess) {
+                    if (isProviderOfProcess(providerInfo, processName, context.getPackageName())) {
                         installProvider(BlackBoxCore.mainThread(), context, providerInfo, null);
                     }
                 } catch (SecurityException se) {
@@ -1202,8 +1211,7 @@ public class BActivityThread extends IBActivityThread.Stub {
                         Slog.w(TAG, "Skipping anti-detect ContentProvider: " + providerInfo.name);
                         continue;
                     }
-                    if (processName.equals(providerInfo.processName) ||
-                            providerInfo.processName.equals(context.getPackageName()) || providerInfo.multiprocess) {
+                    if (isProviderOfProcess(providerInfo, processName, context.getPackageName())) {
                         installProvider(BlackBoxCore.mainThread(), context, providerInfo, null);
                     }
                 } catch (Throwable ignored) {
