@@ -121,17 +121,77 @@ public final class NotificationPresenter {
             if (n.getLargeIcon() != null || n.largeIcon != null) {
                 return;
             }
-            Drawable d = guest.getPackageManager().getApplicationIcon(guest.getApplicationInfo());
-            int[] size = IconBudget.fit(d.getIntrinsicWidth(), d.getIntrinsicHeight(), IconBudget.LARGE_PX);
+            Bundle extras = n.extras;
+            if (extras != null && extras.getParcelable(Notification.EXTRA_LARGE_ICON) != null) {
+                return;
+            }
+            Drawable d = guestAppIcon(guest);
+            if (d == null) {
+                Slog.w(TAG, "largeIcon por defecto: icono de la app invitada no disponible");
+                return;
+            }
+            int w = d.getIntrinsicWidth() > 0 ? d.getIntrinsicWidth() : IconBudget.LARGE_PX;
+            int h = d.getIntrinsicHeight() > 0 ? d.getIntrinsicHeight() : IconBudget.LARGE_PX;
+            int[] size = IconBudget.fit(w, h, IconBudget.LARGE_PX);
             if (!budget.tryTake(IconBudget.bytesOf(size[0], size[1]))) {
+                Slog.w(TAG, "largeIcon por defecto omitido: presupuesto de bitmaps agotado");
                 return;
             }
             Bitmap bm = Bitmap.createBitmap(size[0], size[1], Bitmap.Config.ARGB_8888);
             d.setBounds(0, 0, size[0], size[1]);
             d.draw(new Canvas(bm));
-            BRNotificationM.get(n)._set_mLargeIcon(Icon.createWithBitmap(bm));
+            Icon icon = Icon.createWithBitmap(bm);
+            setLargeIconField(n, icon);
+            // El sistema y algunas ROM leen el icono grande de los extras (android.largeIcon), no del campo.
+            if (extras == null) {
+                extras = new Bundle();
+                n.extras = extras;
+            }
+            extras.putParcelable(Notification.EXTRA_LARGE_ICON, bm);
+            Slog.i(TAG, "PRESENTER largeIcon por defecto " + size[0] + "x" + size[1]
+                    + " campo=" + (n.getLargeIcon() == icon));
         } catch (Throwable t) {
             Slog.w(TAG, "icono de app como largeIcon no disponible", t);
+        }
+    }
+
+    /** Icono de la app invitada: primero por sus recursos (el PackageManager virtual puede devolver uno generico). */
+    private static Drawable guestAppIcon(Context guest) {
+        try {
+            int res = guest.getApplicationInfo().icon;
+            if (res != 0) {
+                Drawable d = guest.getResources().getDrawable(res, guest.getTheme());
+                if (d != null) {
+                    return d;
+                }
+            }
+        } catch (Throwable t) {
+            Slog.w(TAG, "icono de app por recursos fallido", t);
+        }
+        try {
+            return guest.getPackageManager().getApplicationIcon(guest.getApplicationInfo());
+        } catch (Throwable t) {
+            Slog.w(TAG, "icono de app por PackageManager fallido", t);
+            return null;
+        }
+    }
+
+    /** Fija mLargeIcon por BlackReflection y, si no cede, por reflexion directa. */
+    private static void setLargeIconField(Notification n, Icon icon) {
+        try {
+            BRNotificationM.get(n)._set_mLargeIcon(icon);
+        } catch (Throwable t) {
+            Slog.w(TAG, "mLargeIcon por BlackReflection fallido", t);
+        }
+        if (n.getLargeIcon() == icon) {
+            return;
+        }
+        try {
+            Field f = Notification.class.getDeclaredField("mLargeIcon");
+            f.setAccessible(true);
+            f.set(n, icon);
+        } catch (Throwable t) {
+            Slog.w(TAG, "mLargeIcon por reflexion fallido", t);
         }
     }
 
