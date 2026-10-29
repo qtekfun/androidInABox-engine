@@ -75,6 +75,12 @@ public class ContentProviderStub extends ClassInvocationStub implements BContent
         }
         
         
+        // Provider en el mismo proceso: el llamado ve el UID virtual, no el del host
+        if (mBase instanceof android.os.IInterface
+                && ((android.os.IInterface) mBase).asBinder() instanceof android.os.Binder) {
+            AttributionSourceUtils.setAttributionSourceUidInArgs(args, top.niunaijun.blackbox.app.BActivityThread.getBUid());
+        }
+
         methodName = method.getName();
         if (methodName.equals("query") || methodName.equals("insert") || 
             methodName.equals("update") || methodName.equals("delete") || 

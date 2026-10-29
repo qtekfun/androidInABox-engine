@@ -38,6 +38,42 @@ public class AttributionSourceUtils {
     }
 
     
+    /**
+     * Para llamadas dentro del mismo proceso (provider local) el llamado ve el UID virtual del invitado
+     * (hook de getCallingUid), así que el AttributionSource debe llevar ese mismo UID.
+     */
+    public static void setAttributionSourceUidInArgs(Object[] args, int uid) {
+        if (args == null) return;
+        for (Object arg : args) {
+            if (arg != null && "android.content.AttributionSource".equals(arg.getClass().getName())) {
+                setUid(arg, uid);
+            }
+        }
+    }
+
+    private static void setUid(Object attributionSource, int uid) {
+        try {
+            Object state = null;
+            try {
+                java.lang.reflect.Field f = attributionSource.getClass().getDeclaredField("mAttributionSourceState");
+                f.setAccessible(true);
+                state = f.get(attributionSource);
+            } catch (NoSuchFieldException ignored) {
+            }
+            Object target = state != null ? state : attributionSource;
+            for (String name : new String[]{"uid", "mUid"}) {
+                try {
+                    java.lang.reflect.Field uidField = target.getClass().getDeclaredField(name);
+                    uidField.setAccessible(true);
+                    uidField.setInt(target, uid);
+                    return;
+                } catch (NoSuchFieldException ignored) {
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+    }
+
     public static void fixAttributionSourceUid(Object attributionSource) {
         try {
             if (attributionSource == null) return;
