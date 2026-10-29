@@ -32,7 +32,6 @@ import java.util.Map;
 
 import black.android.app.BRActivityThread;
 import black.android.os.BRUserHandle;
-import me.weishu.reflection.Reflection;
 import top.niunaijun.blackbox.app.BActivityThread;
 import top.niunaijun.blackbox.app.LauncherActivity;
 import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback;
@@ -1664,14 +1663,7 @@ public class BlackBoxCore extends ClientConfiguration {
         boolean unlocked = HiddenApiGate.unlock();
         if (!unlocked) {
             Slog.w(TAG, "HiddenApiGate.unlock falló en " + Build.MODEL + " (Android " + Build.VERSION.RELEASE
-                    + "); se usa el respaldo");
-            if (!NativeCore.disableHiddenApi()) {
-                try {
-                    Reflection.unseal(context);
-                } catch (Throwable t) {
-                    Slog.w(TAG, "Reflection.unseal failed: " + t.getMessage());
-                }
-            }
+                    + ")");
         }
 
         try {

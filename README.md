@@ -70,7 +70,7 @@ Refer to `Docs.md` for detailed API documentation.
 *   **Main Developer**: ALEX502
 *   **Original Framework**: VirtualApp, VirtualAPK
 *   **Native Hooks**: Dobby, xDL
-*   **Reflection**: BlackReflection, FreeReflection
+*   **Reflection**: BlackReflection
 
 ## License
 

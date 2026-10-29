@@ -36,8 +36,6 @@ public class NativeCore {
 
     public static native void hideXposed();
 
-    public static native boolean disableHiddenApi();
-    
     public static native boolean disableResourceLoading();
 
 
