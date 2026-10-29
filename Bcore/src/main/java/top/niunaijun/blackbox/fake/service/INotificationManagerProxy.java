@@ -122,7 +122,17 @@ public class INotificationManagerProxy extends BinderInvocationStub {
 
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return hostNotificationsEnabled();
+            // Preguntar al servicio real por el host directamente: NotificationManager volvería a pasar por este proxy
+            if (args != null) {
+                for (int i = 0; i < args.length; i++) {
+                    if (args[i] instanceof String) {
+                        args[i] = BlackBoxCore.getHostPkg();
+                    } else if (args[i] instanceof Integer) {
+                        args[i] = android.os.Process.myUid();
+                    }
+                }
+            }
+            return method.invoke(who, args);
         }
     }
 
@@ -156,14 +166,6 @@ public class INotificationManagerProxy extends BinderInvocationStub {
 
     @ProxyMethod("getAppActiveNotifications")
     public static class GetAppActiveNotifications extends GetActiveNotifications {
-    }
-
-    private static boolean hostNotificationsEnabled() {
-        if (!BuildCompat.isN()) {
-            return true;
-        }
-        NotificationManager nm = (NotificationManager) BlackBoxCore.getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-        return nm.areNotificationsEnabled();
     }
 
     @ProxyMethod("enqueueNotificationWithTag")
