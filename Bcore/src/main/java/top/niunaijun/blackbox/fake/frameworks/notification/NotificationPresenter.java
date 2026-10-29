@@ -28,6 +28,10 @@ import top.niunaijun.blackbox.utils.Slog;
 public final class NotificationPresenter {
     public static final String TAG = "NotificationPresenter";
 
+    /** Extras privados hacia :black; el servicio los lee y los elimina antes de publicar. */
+    public static final String EXTRA_APP_LABEL = "bb.app_label";
+    public static final String EXTRA_PROFILE_LABEL = "bb.profile_label";
+
     private static final int TYPE_RESOURCE = 2;
 
     private NotificationPresenter() {
@@ -51,7 +55,69 @@ public final class NotificationPresenter {
         convertActions(n, guest, budget);
         convertExtras(n, guest, budget);
         convertLargeIcon(n, guest, budget);
+        identify(n, guest, budget);
         return n;
+    }
+
+    /** Etiquetas de app y perfil: subText, largeIcon por defecto y extras privados (R02.1, R02.2). */
+    private static void identify(Notification n, Context guest, IconBudget budget) {
+        String app = guest.getPackageName();
+        try {
+            CharSequence label = guest.getPackageManager().getApplicationLabel(guest.getApplicationInfo());
+            if (label != null && label.length() > 0) {
+                app = label.toString();
+            }
+        } catch (Throwable t) {
+            Slog.w(TAG, "etiqueta de app no disponible", t);
+        }
+        String profile = profileLabel(BActivityThread.getUserId());
+        try {
+            Bundle extras = n.extras;
+            if (extras == null) {
+                extras = new Bundle();
+                n.extras = extras;
+            }
+            String own = null;
+            CharSequence sub = extras.getCharSequence(Notification.EXTRA_SUB_TEXT);
+            if (sub != null && sub.length() > 0) {
+                own = sub.toString();
+            }
+            extras.putCharSequence(Notification.EXTRA_SUB_TEXT, subText(app, profile, own));
+            extras.putString(EXTRA_APP_LABEL, app);
+            extras.putString(EXTRA_PROFILE_LABEL, profile);
+        } catch (Throwable t) {
+            Slog.w(TAG, "subText no aplicable", t);
+        }
+        defaultLargeIcon(n, guest, budget);
+    }
+
+    public static String profileLabel(int userId) {
+        return "Perfil " + (userId + 1);
+    }
+
+    public static String subText(String app, String profile, String own) {
+        String base = app + " \u00b7 " + profile;
+        return own == null || own.isEmpty() ? base : base + " \u00b7 " + own;
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void defaultLargeIcon(Notification n, Context guest, IconBudget budget) {
+        try {
+            if (n.getLargeIcon() != null || n.largeIcon != null) {
+                return;
+            }
+            Drawable d = guest.getPackageManager().getApplicationIcon(guest.getApplicationInfo());
+            int[] size = IconBudget.fit(d.getIntrinsicWidth(), d.getIntrinsicHeight(), IconBudget.LARGE_PX);
+            if (!budget.tryTake(IconBudget.bytesOf(size[0], size[1]))) {
+                return;
+            }
+            Bitmap bm = Bitmap.createBitmap(size[0], size[1], Bitmap.Config.ARGB_8888);
+            d.setBounds(0, 0, size[0], size[1]);
+            d.draw(new Canvas(bm));
+            BRNotificationM.get(n)._set_mLargeIcon(Icon.createWithBitmap(bm));
+        } catch (Throwable t) {
+            Slog.w(TAG, "icono de app como largeIcon no disponible", t);
+        }
     }
 
     // ---- iconos pequeno y grande ----
@@ -111,6 +177,7 @@ public final class NotificationPresenter {
             if (a == null) {
                 continue;
             }
+            ExtrasSanitizer.clean(a.getExtras());
             try {
                 Icon src = a.getIcon();
                 if (src == null) {
@@ -137,6 +204,7 @@ public final class NotificationPresenter {
         }
         extras = new Bundle(extras);
         n.extras = extras;
+        ExtrasSanitizer.clean(extras);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             try {
                 convertPersonExtras(extras, guest, budget);
