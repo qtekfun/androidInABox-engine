@@ -136,7 +136,10 @@ public class IPackageManagerProxy extends BinderInvocationStub {
             int flags = MethodParameterUtils.toInt(args[1]);
             
             
-            if ("com.android.vending".equals(packageName)) {
+            // El PackageInfo falso (sin firmas) solo si Play Store no está instalado en este perfil del box;
+            // si lo está, Play Store lee sus propias firmas y fallaba con signatures == null.
+            if ("com.android.vending".equals(packageName)
+                    && !BlackBoxCore.get().isInstalled(packageName, BActivityThread.getUserId())) {
                 return createFakeGooglePlayServicesPackageInfo();
             }
             
