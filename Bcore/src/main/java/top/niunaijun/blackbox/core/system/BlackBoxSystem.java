@@ -63,6 +63,7 @@ public class BlackBoxSystem {
         mServices.add(BLocationManagerService.get());
         mServices.add(BNotificationManagerService.get());
         mServices.add(top.niunaijun.blackbox.core.system.companion.BCompanionDeviceService.get());
+        mServices.add(top.niunaijun.blackbox.core.system.pm.session.BInstallSessionService.get());
 
         for (ISystemService service : mServices) {
             service.systemReady();
