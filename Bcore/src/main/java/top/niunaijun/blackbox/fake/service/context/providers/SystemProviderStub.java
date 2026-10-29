@@ -51,7 +51,10 @@ public class SystemProviderStub extends ClassInvocationStub implements BContentP
         
         
         if ("call".equals(methodName)) {
-            
+            Object identity = identityOverride(args);
+            if (identity != null) {
+                return identity;
+            }
             if (args != null) {
                 Class<?> attributionSourceClass = BRAttributionSource.getRealClass();
                 for (int i = 0; i < args.length; i++) {
@@ -101,5 +104,27 @@ public class SystemProviderStub extends ClassInvocationStub implements BContentP
                authority.equals("applications") ||
                authority.startsWith("com.android.") ||
                authority.startsWith("android.");
+    }
+
+    /**
+     * Settings.Secure android_id propio del perfil (y de la app, como en Android 8+) en lugar del del
+     * host (ADR-0008). Devuelve la respuesta del provider o null si no es esa consulta.
+     */
+    private static Object identityOverride(Object[] args) {
+        if (args == null) return null;
+        try {
+            for (int i = 0; i + 1 < args.length; i++) {
+                if ("GET_secure".equals(args[i]) && "android_id".equals(args[i + 1])) {
+                    android.os.Bundle out = new android.os.Bundle();
+                    out.putString("value", top.niunaijun.blackbox.core.system.user.ProfileIdentity.androidId(
+                            top.niunaijun.blackbox.app.BActivityThread.getUserId(),
+                            top.niunaijun.blackbox.app.BActivityThread.getAppPackageName()));
+                    return out;
+                }
+            }
+        } catch (Throwable t) {
+            // sin identidad propia: responde el provider real
+        }
+        return null;
     }
 }

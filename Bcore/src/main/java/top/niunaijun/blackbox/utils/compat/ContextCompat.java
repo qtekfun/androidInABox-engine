@@ -67,6 +67,43 @@ public class ContextCompat {
         }
     }
 
+    private static volatile boolean sExtensionesListadas;
+
+    /**
+     * Diagnostico (solo log, una vez por proceso): campos de extension del fabricante (tipo o nombre
+     * *Ext / *ExtImpl) presentes en clases del framework por las que pasan las apps invitadas. Sirve para
+     * decidir con evidencia que otros hooks del firmware hay que neutralizar; en AOSP no lista nada.
+     */
+    private static void listarExtensionesDelFabricante(Context base) {
+        if (sExtensionesListadas) return;
+        sExtensionesListadas = true;
+        try {
+            Class<?>[] clases = {
+                    base.getClass(),
+                    android.content.ContentResolver.class,
+                    Class.forName("android.app.ApplicationPackageManager"),
+                    Class.forName("android.app.ActivityThread"),
+                    android.app.Instrumentation.class,
+                    android.app.NotificationManager.class,
+                    android.app.Activity.class,
+            };
+            StringBuilder sb = new StringBuilder();
+            for (Class<?> c : clases) {
+                for (java.lang.reflect.Field f : c.getDeclaredFields()) {
+                    String n = f.getName(), t = f.getType().getName();
+                    if (n.endsWith("Ext") || n.endsWith("ExtImpl") || t.endsWith("Ext") || t.endsWith("ExtImpl")) {
+                        sb.append(c.getSimpleName()).append('.').append(n).append(':').append(t).append(' ');
+                    }
+                }
+            }
+            if (sb.length() > 0) {
+                Slog.i(TAG, "extensiones del fabricante en el framework: " + sb);
+            }
+        } catch (Throwable ignored) {
+            // solo diagnostico
+        }
+    }
+
     public static void fix(Context context) {
         try {
             
@@ -106,6 +143,7 @@ public class ContextCompat {
                 Slog.w(TAG, "Failed to fix content resolver: " + e.getMessage());
             }
             neutralizarFiltroGmsDelResolver(context.getContentResolver());
+            listarExtensionesDelFabricante(context);
 
             if (BuildCompat.isS()) {
                 try {
