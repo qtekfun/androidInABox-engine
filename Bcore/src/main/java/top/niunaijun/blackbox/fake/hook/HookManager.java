@@ -152,6 +152,7 @@ public class HookManager {
             addInjector(new ITelephonyRegistryProxy());
             addInjector(new IDevicePolicyManagerProxy());
             addInjector(new IAccountManagerProxy());
+            addInjector(new top.niunaijun.blackbox.fake.service.IAuthServiceProxy());
             addInjector(new NetworkPermissionCompat());
             addInjector(new IConnectivityManagerProxy());
             addInjector(new IDnsResolverProxy());
