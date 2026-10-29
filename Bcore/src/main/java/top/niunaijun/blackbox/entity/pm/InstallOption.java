@@ -9,6 +9,8 @@ public class InstallOption implements Parcelable {
     public static final int FLAG_STORAGE = 1 << 1;
 
     public static final int FLAG_URI_FILE = 1 << 3;
+    /** {@code file} es un directorio de staging con uno o varios APK / bundles. (1 << 2 queda libre.) */
+    public static final int FLAG_SPLIT_SET = 1 << 4;
 
     public int flags = 0;
 
@@ -28,6 +30,11 @@ public class InstallOption implements Parcelable {
 
     public InstallOption makeUriFile() {
         this.flags |= FLAG_URI_FILE;
+        return this;
+    }
+
+    public InstallOption makeSplitSet() {
+        this.flags |= FLAG_SPLIT_SET;
         return this;
     }
 

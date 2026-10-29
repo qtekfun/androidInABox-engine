@@ -34,6 +34,11 @@ import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.core.system.BProcessManagerService;
 import top.niunaijun.blackbox.core.system.ISystemService;
 import top.niunaijun.blackbox.core.system.ProcessRecord;
+import top.niunaijun.blackbox.core.system.pm.split.InvalidSplitSetException;
+import top.niunaijun.blackbox.core.system.pm.split.SplitInfo;
+import top.niunaijun.blackbox.core.system.pm.split.SplitPreparer;
+import top.niunaijun.blackbox.core.system.pm.split.SplitSelector;
+import top.niunaijun.blackbox.core.system.pm.split.SplitSet;
 import top.niunaijun.blackbox.core.system.user.BUserHandle;
 import top.niunaijun.blackbox.core.system.user.BUserInfo;
 import top.niunaijun.blackbox.core.system.user.BUserManagerService;
@@ -649,11 +654,38 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         long l = System.currentTimeMillis();
         InstallResult result = new InstallResult();
         File apkFile = null;
+        File stagingDir = null;
+        SplitSet splitSet = null;
+        List<SplitInfo> selectedSplits = null;
         try {
             if (!sUserManager.exists(userId)) {
                 sUserManager.createUser(userId);
             }
-            if (option.isFlag(InstallOption.FLAG_URI_FILE)) {
+            if (option.isFlag(InstallOption.FLAG_SPLIT_SET)) {
+                stagingDir = new File(file);
+                if (!isInsideCacheDir(stagingDir) || !stagingDir.isDirectory()) {
+                    stagingDir = null;
+                    return result.installError("Invalid staging directory.");
+                }
+                try {
+                    splitSet = SplitPreparer.prepare(stagingDir, stagingDir.getUsableSpace());
+                } catch (InvalidSplitSetException e) {
+                    return result.installError(e.getMessage());
+                }
+                SplitSelector.Result selection = selectSplits(splitSet);
+                selectedSplits = selection.selected;
+                for (SplitInfo d : selection.discarded) {
+                    Slog.d(TAG, "split discarded: " + d.splitName);
+                }
+                if (selection.abiMismatch && new AbiUtils(splitSet.base.file).isEmptyAib()) {
+                    return result.installError(splitSet.getPackageName(),
+                            "No native libraries compatible with this box (" + (BlackBoxCore.is64Bit() ? "64-bit" : "32-bit") + ").");
+                }
+                if (splitSet.base.isolatedSplits) {
+                    Slog.w(TAG, "isolatedSplits=true is not supported yet: " + splitSet.getPackageName());
+                }
+                apkFile = splitSet.base.file;
+            } else if (option.isFlag(InstallOption.FLAG_URI_FILE)) {
                 apkFile = new File(BEnvironment.getCacheDir(), UUID.randomUUID().toString() + ".apk");
                 InputStream inputStream = BlackBoxCore.getContext().getContentResolver().openInputStream(Uri.parse(file));
                 FileUtils.copyFile(inputStream, apkFile);
@@ -698,6 +730,14 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 aPackage.applicationInfo = BlackBoxCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
             }
             BPackageSettings bPackageSettings = mSettings.getPackageLPw(aPackage.packageName, aPackage, option);
+            if (selectedSplits != null && !selectedSplits.isEmpty()) {
+                bPackageSettings.pkg.splitNames = new ArrayList<>();
+                bPackageSettings.pkg.splitCodePaths = new ArrayList<>();
+                for (SplitInfo split : selectedSplits) {
+                    bPackageSettings.pkg.splitNames.add(split.splitName);
+                    bPackageSettings.pkg.splitCodePaths.add(split.file.getAbsolutePath());
+                }
+            }
 
             
             BProcessManagerService.get().killPackageAsUser(aPackage.packageName, userId);
@@ -718,12 +758,39 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
         } catch (Throwable t) {
             t.printStackTrace();
         } finally {
-            if (apkFile != null && option.isFlag(InstallOption.FLAG_URI_FILE)) {
+            if (stagingDir != null) {
+                FileUtils.deleteDir(stagingDir);
+            } else if (apkFile != null && option.isFlag(InstallOption.FLAG_URI_FILE)) {
                 FileUtils.deleteDir(apkFile);
             }
             Slog.d(TAG, "install finish: " + (System.currentTimeMillis() - l) + "ms");
         }
         return result;
+    }
+
+    private static boolean isInsideCacheDir(File dir) {
+        try {
+            String cache = BEnvironment.getCacheDir().getCanonicalPath() + File.separator;
+            return dir.getCanonicalPath().startsWith(cache);
+        } catch (java.io.IOException e) {
+            return false;
+        }
+    }
+
+    private static SplitSelector.Result selectSplits(SplitSet set) {
+        List<String> abis = BlackBoxCore.is64Bit()
+                ? Collections.singletonList("arm64-v8a")
+                : java.util.Arrays.asList("armeabi-v7a", "armeabi");
+        android.content.res.Configuration config = BlackBoxCore.getContext().getResources().getConfiguration();
+        int density = BlackBoxCore.getContext().getResources().getDisplayMetrics().densityDpi;
+        List<String> locales = new ArrayList<>();
+        if (android.os.Build.VERSION.SDK_INT >= 24) {
+            android.os.LocaleList list = config.getLocales();
+            for (int i = 0; i < list.size(); i++) locales.add(list.get(i).toLanguageTag());
+        } else if (config.locale != null) {
+            locales.add(config.locale.toLanguageTag());
+        }
+        return SplitSelector.select(set, abis, density, locales);
     }
 
     private PackageParser.Package parserApk(String file) {
