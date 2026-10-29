@@ -11,6 +11,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 
@@ -51,7 +52,7 @@ public final class NotificationPresenter {
             return n;
         }
         IconBudget budget = new IconBudget();
-        convertSmallIcon(n, guest, budget);
+        n = convertSmallIcon(n, guest, budget);
         convertActions(n, guest, budget);
         convertExtras(n, guest, budget);
         convertLargeIcon(n, guest, budget);
@@ -136,10 +137,14 @@ public final class NotificationPresenter {
     // ---- iconos pequeno y grande ----
 
     @SuppressWarnings("deprecation")
-    private static void convertSmallIcon(Notification n, Context guest, IconBudget budget) {
+    private static Notification convertSmallIcon(Notification n, Context guest, IconBudget budget) {
         Icon bitmapIcon = null;
         try {
             Icon src = n.getSmallIcon();
+            if (src == null && n.icon != 0) {
+                // Builder.setSmallIcon(int) puede dejar solo el int legado: es un id del APK invitado.
+                src = Icon.createWithResource(guest.getPackageName(), n.icon);
+            }
             if (src != null) {
                 bitmapIcon = toBitmapIcon(src, guest, IconBudget.SMALL_PX, budget, true);
             }
@@ -147,11 +152,45 @@ public final class NotificationPresenter {
             Slog.w(TAG, "icono pequeno no convertible, se usa el del host", t);
         }
         if (bitmapIcon == null) {
+            Slog.w(TAG, "icono pequeno sin convertir, se usa el icono generico del host");
             bitmapIcon = hostIcon();
         }
-        BRNotificationM.get(n)._set_mSmallIcon(bitmapIcon);
+        Notification out = setSmallIcon(n, guest, bitmapIcon);
         // El sistema puede validar icon != 0; se deja un recurso del host.
-        n.icon = BlackBoxCore.getContext().getApplicationInfo().icon;
+        out.icon = BlackBoxCore.getContext().getApplicationInfo().icon;
+        return out;
+    }
+
+    /** Fija mSmallIcon y lo verifica; si el campo oculto no cede, reconstruye con la API publica. */
+    private static Notification setSmallIcon(Notification n, Context guest, Icon icon) {
+        try {
+            Field f = Notification.class.getDeclaredField("mSmallIcon");
+            f.setAccessible(true);
+            f.set(n, icon);
+        } catch (Throwable t) {
+            Slog.w(TAG, "mSmallIcon por reflexion fallido", t);
+        }
+        if (n.getSmallIcon() == icon) {
+            return n;
+        }
+        try {
+            BRNotificationM.get(n)._set_mSmallIcon(icon);
+        } catch (Throwable t) {
+            Slog.w(TAG, "mSmallIcon por BlackReflection fallido", t);
+        }
+        if (n.getSmallIcon() == icon) {
+            return n;
+        }
+        try {
+            Notification rebuilt = Notification.Builder.recoverBuilder(guest, n).setSmallIcon(icon).build();
+            if (rebuilt.getSmallIcon() == icon) {
+                return rebuilt;
+            }
+        } catch (Throwable t) {
+            Slog.w(TAG, "recoverBuilder fallido", t);
+        }
+        Slog.w(TAG, "no se pudo reemplazar el icono pequeno");
+        return n;
     }
 
     @SuppressWarnings("deprecation")
