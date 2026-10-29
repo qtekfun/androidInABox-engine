@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="background_category">Segundo plano</string>
+    <string name="battery_exemption">Optimización de batería</string>
+    <string name="battery_exempt_yes">Exento: el motor puede ejecutarse en segundo plano</string>
+    <string name="battery_exempt_no">No exento: las notificaciones pueden retrasarse. Toca para arreglarlo</string>
+    <string name="rom_autostart">Autoarranque y actividad en segundo plano</string>
+    <string name="rom_autostart_summary">Abre los ajustes del fabricante para que las apps puedan iniciarse y ejecutarse en segundo plano</string>
+    <string name="rom_autostart_manual">No se pudieron abrir los ajustes. Abre Ajustes, Aplicaciones, esta app, y permite el autoarranque, el uso de batería sin restricciones y bloquea la app en recientes.</string>
+    <string name="start_on_boot">Iniciar con el sistema</string>
+    <string name="start_on_boot_summary">Reinicia el motor y las apps mantenidas vivas tras reiniciar el dispositivo</string>
+</resources>

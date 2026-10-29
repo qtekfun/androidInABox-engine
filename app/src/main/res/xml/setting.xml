@@ -4,6 +4,24 @@
 
 
 
+    <PreferenceCategory app:title="@string/background_category">
+
+        <Preference
+                android:key="battery_exemption"
+                android:title="@string/battery_exemption" />
+
+        <Preference
+                android:key="rom_autostart"
+                android:title="@string/rom_autostart"
+                android:summary="@string/rom_autostart_summary" />
+
+        <SwitchPreferenceCompat
+                app:key="start_on_boot"
+                app:title="@string/start_on_boot"
+                app:summary="@string/start_on_boot_summary" />
+
+    </PreferenceCategory>
+
     <PreferenceCategory app:title="@string/other">
 
         <Preference

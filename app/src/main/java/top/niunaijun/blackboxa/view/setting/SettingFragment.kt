@@ -9,6 +9,8 @@ import androidx.preference.PreferenceFragmentCompat
 import top.niunaijun.blackbox.BlackBoxCore
 import top.niunaijun.blackboxa.R
 import top.niunaijun.blackboxa.app.AppManager
+import top.niunaijun.blackbox.core.system.BackgroundSettings
+import top.niunaijun.blackboxa.util.PowerGuide
 import top.niunaijun.blackboxa.util.toast
 import top.niunaijun.blackboxa.view.gms.GmsManagerActivity
 
@@ -18,6 +20,7 @@ class SettingFragment : PreferenceFragmentCompat() {
         setPreferencesFromResource(R.xml.setting, rootKey)
 
         initGms()
+        initBackground()
 
         invalidHideState {
             val rootHidePreference: Preference = (findPreference("root_hide")!!)
@@ -53,6 +56,40 @@ class SettingFragment : PreferenceFragmentCompat() {
             titlePrefixPreference
         }
 
+    }
+
+    override fun onResume() {
+        super.onResume()
+        refreshBatteryState()
+    }
+
+    private fun refreshBatteryState() {
+        val pref: Preference = findPreference("battery_exemption") ?: return
+        val ok = PowerGuide.isIgnoringBatteryOptimizations(requireContext())
+        pref.summary = getString(if (ok) R.string.battery_exempt_yes else R.string.battery_exempt_no)
+    }
+
+    private fun initBackground() {
+        val ctx = requireContext()
+        findPreference<Preference>("battery_exemption")?.setOnPreferenceClickListener {
+            PowerGuide.requestIgnoreBatteryOptimizations(ctx)
+            true
+        }
+        findPreference<Preference>("rom_autostart")?.setOnPreferenceClickListener {
+            if (PowerGuide.openAutostartSettings(ctx) == PowerGuide.Opened.NONE) {
+                toast(R.string.rom_autostart_manual)
+            }
+            true
+        }
+        findPreference<androidx.preference.SwitchPreferenceCompat>("start_on_boot")?.apply {
+            // El ajuste es un fichero marcador compartido con :black (el receptor de arranque lo lee alli)
+            isPersistent = false
+            isChecked = BackgroundSettings.isStartOnBoot(ctx.filesDir)
+            setOnPreferenceChangeListener { _, value ->
+                BackgroundSettings.setStartOnBoot(ctx.filesDir, value as Boolean)
+                true
+            }
+        }
     }
 
     private fun initGms() {
