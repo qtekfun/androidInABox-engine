@@ -17,6 +17,9 @@ import android.content.res.AssetManager;
 import android.content.res.Resources;
 import android.os.Build;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -29,6 +32,7 @@ import black.android.content.res.BRAssetManager;
 import top.niunaijun.blackbox.BlackBoxCore;
 import top.niunaijun.blackbox.core.env.AppSystemEnv;
 import top.niunaijun.blackbox.core.env.BEnvironment;
+import top.niunaijun.blackbox.core.system.pm.split.SplitManifestReader;
 import top.niunaijun.blackbox.entity.pm.InstallOption;
 import top.niunaijun.blackbox.utils.ArrayUtils;
 import top.niunaijun.blackbox.utils.FileUtils;
@@ -350,6 +354,51 @@ public class PackageManagerCompat {
         ai.splitSourceDirs = dirs;
         ai.splitPublicSourceDirs = dirs.clone();
         ai.splitNames = names.toArray(new String[0]);
+    }
+
+    /**
+     * Clon del host: referencia (no copia) los splits del paquete real. Los nombres salen de
+     * {@code splitNames} del host o, si no vienen alineados, del manifiesto de cada split.
+     */
+    static void adoptHostSplits(BPackage p, ApplicationInfo hostAi) {
+        String[] dirs = hostAi == null ? null : hostAi.splitSourceDirs;
+        if (dirs == null || dirs.length == 0) {
+            return;
+        }
+        p.splitNames = hostSplitNames(hostAi);
+        p.splitCodePaths = new ArrayList<>(Arrays.asList(dirs));
+    }
+
+    static List<String> hostSplitNames(ApplicationInfo hostAi) {
+        String[] dirs = hostAi.splitSourceDirs;
+        List<String> names = new ArrayList<>();
+        String[] hostNames = hostAi.splitNames;
+        for (int i = 0; i < dirs.length; i++) {
+            String name = null;
+            if (hostNames != null && hostNames.length == dirs.length) {
+                name = hostNames[i];
+            }
+            if (name == null) {
+                try {
+                    name = SplitManifestReader.read(new File(dirs[i])).splitName;
+                } catch (Exception ignored) {
+                }
+            }
+            if (name == null) {
+                name = new File(dirs[i]).getName();
+            }
+            names.add(name);
+        }
+        return names;
+    }
+
+    /** True si el paquete real tiene otro conjunto de splits que el guardado en el clon. */
+    static boolean hostSplitsChanged(ApplicationInfo hostAi, ApplicationInfo storedAi) {
+        String[] host = hostAi == null ? null : hostAi.splitSourceDirs;
+        String[] stored = storedAi == null ? null : storedAi.splitSourceDirs;
+        if (host == null) host = new String[0];
+        if (stored == null) stored = new String[0];
+        return !Arrays.equals(host, stored);
     }
 
     private static boolean checkUseInstalledOrHidden(int flags, BPackageUserState state,

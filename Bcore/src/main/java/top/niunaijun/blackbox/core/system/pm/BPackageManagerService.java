@@ -738,6 +738,9 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 aPackage.applicationInfo = BlackBoxCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
             }
             BPackageSettings bPackageSettings = mSettings.getPackageLPw(aPackage.packageName, aPackage, option);
+            if (option.isFlag(InstallOption.FLAG_SYSTEM)) {
+                PackageManagerCompat.adoptHostSplits(bPackageSettings.pkg, aPackage.applicationInfo);
+            }
             if (selectedSplits != null && !selectedSplits.isEmpty()) {
                 bPackageSettings.pkg.splitNames = new ArrayList<>();
                 bPackageSettings.pkg.splitCodePaths = new ArrayList<>();

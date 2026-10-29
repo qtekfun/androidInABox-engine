@@ -214,11 +214,14 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
             if (bPackageSettings.installOption.isFlag(InstallOption.FLAG_SYSTEM)) {
                 PackageInfo packageInfo = BlackBoxCore.getPackageManager().getPackageInfo(packageName, PackageManager.GET_META_DATA);
                 String currPackageSourcePath = packageInfo.applicationInfo.sourceDir;
-                if (!currPackageSourcePath.equals(bPackageSettings.pkg.baseCodePath)) {
+                if (!currPackageSourcePath.equals(bPackageSettings.pkg.baseCodePath)
+                        || PackageManagerCompat.hostSplitsChanged(packageInfo.applicationInfo, bPackageSettings.pkg.applicationInfo)) {
                     
                     BProcessManagerService.get().killAllByPackageName(bPackageSettings.pkg.packageName);
                     BPackageSettings newPkg = reInstallBySystem(packageInfo, bPackageSettings.installOption);
                     bPackageSettings.pkg = newPkg.pkg;
+                } else {
+                    PackageManagerCompat.adoptHostSplits(bPackageSettings.pkg, packageInfo.applicationInfo);
                 }
             } else {
                 bPackageSettings.pkg.applicationInfo = PackageManagerCompat.generateApplicationInfo(bPackageSettings.pkg, 0, BPackageUserState.create(), 0);
@@ -246,7 +249,9 @@ import top.niunaijun.blackbox.utils.compat.PackageParserCompat;
             throw new RuntimeException("parser apk error.");
         }
         aPackage.applicationInfo = BlackBoxCore.getPackageManager().getPackageInfo(aPackage.packageName, 0).applicationInfo;
-        return getPackageLPw(aPackage.packageName, aPackage, option);
+        BPackageSettings ps = getPackageLPw(aPackage.packageName, aPackage, option);
+        PackageManagerCompat.adoptHostSplits(ps.pkg, aPackage.applicationInfo);
+        return ps;
     }
 
     public void removePackage(String packageName) {
