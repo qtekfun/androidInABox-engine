@@ -79,6 +79,7 @@ import top.niunaijun.blackbox.fake.service.HCallbackProxy;
 import top.niunaijun.blackbox.utils.Reflector;
 import top.niunaijun.blackbox.utils.SafeContextWrapper;
 import top.niunaijun.blackbox.utils.GlobalContextWrapper;
+import top.niunaijun.blackbox.core.system.pm.split.SplitPaths;
 import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.compat.ActivityManagerCompat;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
@@ -377,6 +378,7 @@ public class BActivityThread extends IBActivityThread.Stub {
         BRLoadedApk.get(loadedApk)._set_mSecurityViolation(false);
         
         BRLoadedApk.get(loadedApk)._set_mApplicationInfo(applicationInfo);
+        syncLoadedApkSplits(loadedApk, applicationInfo);
 
         int targetSdkVersion = applicationInfo.targetSdkVersion;
         if (targetSdkVersion < Build.VERSION_CODES.GINGERBREAD) {
@@ -633,12 +635,38 @@ public class BActivityThread extends IBActivityThread.Stub {
     }
     
     
+    /**
+     * El LoadedApk se crea con el ApplicationInfo que devuelve el PackageManager virtual; aquí se
+     * alinean sus campos de splits con el definitivo (el classloader y los recursos los leen de ahí).
+     */
+    private static void syncLoadedApkSplits(Object loadedApk, ApplicationInfo ai) {
+        if (ai.splitSourceDirs == null || ai.splitSourceDirs.length == 0) {
+            return;
+        }
+        try {
+            if (BRLoadedApk.get(loadedApk)._check_mSplitNames() != null) {
+                BRLoadedApk.get(loadedApk)._set_mSplitNames(ai.splitNames);
+            }
+            if (BRLoadedApk.get(loadedApk)._check_mSplitAppDirs() != null) {
+                BRLoadedApk.get(loadedApk)._set_mSplitAppDirs(ai.splitSourceDirs);
+            }
+            if (BRLoadedApk.get(loadedApk)._check_mSplitResDirs() != null) {
+                BRLoadedApk.get(loadedApk)._set_mSplitResDirs(ai.splitPublicSourceDirs != null
+                        ? ai.splitPublicSourceDirs : ai.splitSourceDirs);
+            }
+            Slog.d(TAG, "splits for " + ai.packageName + ": " + ai.splitSourceDirs.length);
+        } catch (Throwable t) {
+            Slog.w(TAG, "Could not sync LoadedApk splits: " + t.getMessage());
+        }
+    }
+
     private ClassLoader getClassLoader(android.content.pm.ApplicationInfo appInfo) {
         try {
             
             String sourceDir = appInfo.sourceDir;
             if (sourceDir != null) {
-                return new dalvik.system.PathClassLoader(sourceDir, ClassLoader.getSystemClassLoader());
+                return new dalvik.system.PathClassLoader(SplitPaths.dexPath(sourceDir, appInfo.splitSourceDirs),
+                        ClassLoader.getSystemClassLoader());
             }
             
             
