@@ -56,6 +56,7 @@ import top.niunaijun.blackbox.fake.frameworks.BUserManager;
 
 import top.niunaijun.blackbox.fake.hook.HookManager;
 import top.niunaijun.blackbox.proxy.ProxyManifest;
+import top.niunaijun.blackbox.core.IOCore;
 import top.niunaijun.blackbox.utils.FileUtils;
 import top.niunaijun.blackbox.utils.ShellUtils;
 import top.niunaijun.blackbox.utils.Slog;
@@ -1214,6 +1215,23 @@ public class BlackBoxCore extends ClientConfiguration {
 
     public void addAppLifecycleCallback(AppLifecycleCallback appLifecycleCallback) {
         mAppLifecycleCallbacks.add(appLifecycleCallback);
+    }
+
+    /**
+     * Estado de la redirección de ficheros. En el host equivale al estado del JniHook; en un proceso
+     * invitado incluye además la prueba de ruta hecha al activar la redirección.
+     */
+    public boolean isIoRedirectHealthy() {
+        try {
+            if (!NativeCore.isJniHookHealthy()) {
+                return false;
+            }
+            Boolean verified = IOCore.getRedirectVerified();
+            return verified == null || verified;
+        } catch (Throwable t) {
+            Slog.w(TAG, "isIoRedirectHealthy: " + t.getMessage());
+            return false;
+        }
     }
 
     public boolean isSupportGms() {

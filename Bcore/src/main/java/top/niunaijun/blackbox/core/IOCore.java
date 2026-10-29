@@ -20,6 +20,7 @@ import top.niunaijun.blackbox.BlackBoxCore;
 
 import top.niunaijun.blackbox.core.env.BEnvironment;
 import top.niunaijun.blackbox.utils.FileUtils;
+import top.niunaijun.blackbox.utils.Slog;
 import top.niunaijun.blackbox.utils.TrieTree;
 
 
@@ -108,6 +109,7 @@ public class IOCore {
         Map<String, String> rule = new LinkedHashMap<>();
         Set<String> blackRule = new HashSet<>();
         String packageName = context.getPackageName();
+        String virtualDataDir = null;
 
         try {
             ApplicationInfo packageInfo = BlackBoxCore.getBPackageManager().getApplicationInfo(packageName, PackageManager.GET_META_DATA, BlackBoxCore.getUserId());
@@ -115,6 +117,7 @@ public class IOCore {
             rule.put(String.format("/data/data/%s/lib", packageName), packageInfo.nativeLibraryDir);
             rule.put(String.format("/data/user/%d/%s/lib", systemUserId, packageName), packageInfo.nativeLibraryDir);
 
+            virtualDataDir = packageInfo.dataDir;
             rule.put(String.format("/data/data/%s", packageName), packageInfo.dataDir);
             rule.put(String.format("/data/user/%d/%s", systemUserId, packageName), packageInfo.dataDir);
 
@@ -155,6 +158,38 @@ public class IOCore {
             get().addBlackRedirect(s);
         }
         NativeCore.enableIO();
+        sRedirectVerified = verifyRedirect(packageName, virtualDataDir);
+    }
+
+    private static volatile Boolean sRedirectVerified;
+
+    /**
+     * Resultado de la prueba funcional de redirección en este proceso, o null si no se ha ejecutado.
+     */
+    public static Boolean getRedirectVerified() {
+        return sRedirectVerified;
+    }
+
+    private static boolean verifyRedirect(String packageName, String virtualDataDir) {
+        if (!NativeCore.isJniHookHealthy()) {
+            Slog.e(TAG, "IO redirect no activo: JniHook no es sano");
+            return false;
+        }
+        if (virtualDataDir == null) {
+            Slog.w(TAG, "IO redirect sin comprobar: no hay directorio virtual");
+            return true;
+        }
+        try {
+            String probe = new File("/data/data/" + packageName + "/.bb_probe").getCanonicalPath();
+            boolean ok = probe.startsWith(virtualDataDir);
+            if (!ok) {
+                Slog.e(TAG, "IO redirect no activo: la ruta de prueba no se resolvió al directorio virtual");
+            }
+            return ok;
+        } catch (Throwable t) {
+            Slog.e(TAG, "IO redirect: fallo en la prueba de ruta: " + t);
+            return false;
+        }
     }
 
     private void hideRoot(Map<String, String> rule) {
