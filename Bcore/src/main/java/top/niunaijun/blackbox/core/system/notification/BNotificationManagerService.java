@@ -258,6 +258,7 @@ public class BNotificationManagerService extends IBNotificationManagerService.St
                         NotificationIds.scoped(userId, packageName, notificationOContext.mGroupKey()));
             }
         }
+        Slog.i(TAG, "BLACKNOTIF smallIcon=" + notification.getSmallIcon() + " icon=" + notification.icon);
         mRealNotificationManager.notify(realTag, id, notification);
     }
 

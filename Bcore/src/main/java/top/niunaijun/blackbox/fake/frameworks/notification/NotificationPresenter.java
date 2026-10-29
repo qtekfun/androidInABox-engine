@@ -40,6 +40,7 @@ public final class NotificationPresenter {
 
     /** Devuelve una copia lista para enviar al host; nunca lanza (R02.4). */
     public static Notification present(Notification original) {
+        Slog.i(TAG, "PRESENTER entrada smallIcon=" + original.getSmallIcon() + " icon=" + original.icon);
         Notification n;
         try {
             n = original.clone();
@@ -157,7 +158,10 @@ public final class NotificationPresenter {
         }
         Notification out = setSmallIcon(n, guest, bitmapIcon);
         // El sistema puede validar icon != 0; se deja un recurso del host.
-        out.icon = BlackBoxCore.getContext().getApplicationInfo().icon;
+        // Con mSmallIcon fijado el int legado sobra; en 0 evita que fixLegacySmallIcon lo pise.
+        boolean ok = out.getSmallIcon() == bitmapIcon;
+        out.icon = ok ? 0 : BlackBoxCore.getContext().getApplicationInfo().icon;
+        Slog.i(TAG, "PRESENTER smallIcon=" + out.getSmallIcon() + " fijado=" + ok + " icon=" + out.icon);
         return out;
     }
 
