@@ -210,6 +210,47 @@ public class BActivityManagerService extends IBActivityManagerService.Stub imple
     }
 
     /**
+     * Entrega un broadcast del sistema (BOOT_COMPLETED) a los receptores del box, arrancando sus
+     * procesos si hace falta. Los receptores dinamicos de BroadcastManager descartan los broadcast
+     * reales del sistema, asi que este es el unico camino para ellos. Devuelve cuantos receptores recibieron.
+     */
+    public int deliverSystemBroadcast(Intent intent, PendingResultData pendingResultData) {
+        int delivered = 0;
+        boolean registered = false;
+        for (top.niunaijun.blackbox.core.system.user.BUserInfo user
+                : top.niunaijun.blackbox.core.system.user.BUserManagerService.get().getUsers()) {
+            List<ResolveInfo> resolves = BPackageManagerService.get().queryBroadcastReceivers(intent, GET_META_DATA, null, user.id);
+            for (ResolveInfo resolve : resolves) {
+                try {
+                    ProcessRecord processRecord = BProcessManagerService.get().startProcessLocked(
+                            resolve.activityInfo.packageName, resolve.activityInfo.processName, user.id, -1, Process.myPid());
+                    if (processRecord == null) {
+                        continue;
+                    }
+                    if (!registered) {
+                        mBroadcastManager.sendBroadcast(pendingResultData);
+                        registered = true;
+                    }
+                    ReceiverData data = new ReceiverData();
+                    data.intent = new Intent(intent);
+                    data.activityInfo = resolve.activityInfo;
+                    data.data = pendingResultData;
+                    processRecord.bActivityThread.scheduleReceiver(data);
+                    delivered++;
+                    Slog.i(TAG, "broadcast " + intent.getAction() + " entregado a " + resolve.activityInfo.packageName
+                            + "/" + resolve.activityInfo.name + " (perfil " + user.id + ")");
+                } catch (Throwable t) {
+                    Slog.w(TAG, "broadcast " + intent.getAction() + " fallo para " + resolve.activityInfo, t);
+                }
+            }
+        }
+        if (!registered) {
+            pendingResultData.build().finish();
+        }
+        return delivered;
+    }
+
+    /**
      * Entrega un PendingIntent de broadcast o servicio del invitado, ya validado por
      * {@code ProxyPendingReceiver}. Solo se resuelve contra los paquetes del box: si no se puede,
      * se descarta y se registra el motivo (R02.20); el intent original nunca se manda al sistema.
