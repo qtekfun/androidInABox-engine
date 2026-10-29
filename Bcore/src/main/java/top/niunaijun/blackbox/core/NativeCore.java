@@ -38,6 +38,9 @@ public class NativeCore {
 
     public static native boolean disableResourceLoading();
 
+    /** Activa o desactiva el perfil falso de propiedades en este proceso (apagado por defecto). */
+    public static native boolean setPropertySpoof(boolean on);
+
 
     @Keep
     public static int getCallingUid(int origCallingUid) {

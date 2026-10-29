@@ -60,6 +60,7 @@ import black.android.security.net.config.BRNetworkSecurityConfigProvider;
 import black.com.android.internal.content.BRReferrerIntent;
 import black.dalvik.system.BRVMRuntime;
 import top.niunaijun.blackbox.BlackBoxCore;
+import top.niunaijun.blackbox.utils.IntegrityProbe;
 import top.niunaijun.blackbox.app.configuration.AppLifecycleCallback;
 import top.niunaijun.blackbox.app.dispatcher.AppServiceDispatcher;
 import top.niunaijun.blackbox.core.CrashHandler;
@@ -167,6 +168,18 @@ public class BActivityThread extends IBActivityThread.Stub {
 
     public static int getUid() {
         return getAppConfig() == null ? -1 : getAppConfig().uid;
+    }
+
+    /** El perfil falso de propiedades solo se activa si la app lo tiene marcado (apagado por defecto). */
+    private void applyPropertySpoof(String pkg) {
+        try {
+            boolean on = BlackBoxCore.get().isPropertySpoofEnabled(pkg, getUserId());
+            if (on) {
+                Slog.i(TAG, "perfil de propiedades falso activado para " + pkg + ": " + NativeCore.setPropertySpoof(true));
+            }
+        } catch (Throwable t) {
+            Slog.w(TAG, "No se pudo consultar la opción de propiedades de " + pkg, t);
+        }
     }
 
     public static int getUserId() {
@@ -432,6 +445,8 @@ public class BActivityThread extends IBActivityThread.Stub {
         if (!NativeCore.init(Build.VERSION.SDK_INT)) {
             Slog.e(TAG, "init jni hook error: JniHook no es fiable en Android " + Build.VERSION.SDK_INT);
         }
+        applyPropertySpoof(packageName);
+        IntegrityProbe.dumpIfRequested(packageName);
         assert packageContext != null;
         IOCore.get().enableRedirect(packageContext);
 

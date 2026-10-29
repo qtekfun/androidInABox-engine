@@ -67,6 +67,10 @@ public class BEnvironment {
         return new File(getSystemDir(), "xposed-module.conf");
     }
 
+    public static File getAppFlagsConf() {
+        return new File(getSystemDir(), "app-flags.conf");
+    }
+
     public static File getFakeLocationConf() {
         return new File(getSystemDir(), "fake-location.conf");
     }

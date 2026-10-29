@@ -572,6 +572,25 @@ public class BPackageManager extends BlackManager<IBPackageManagerService> {
         }
     }
 
+    public boolean getAppFlag(String packageName, int userId, int flag) {
+        try {
+            IBPackageManagerService service = getService();
+            return service != null && service.getAppFlag(packageName, userId, flag);
+        } catch (RemoteException e) {
+            Log.w(TAG, "getAppFlag falló para " + packageName, e);
+            return false;
+        }
+    }
+
+    public void setAppFlag(String packageName, int userId, int flag, boolean on) {
+        try {
+            IBPackageManagerService service = getService();
+            if (service != null) service.setAppFlag(packageName, userId, flag, on);
+        } catch (RemoteException e) {
+            Log.w(TAG, "setAppFlag falló para " + packageName, e);
+        }
+    }
+
     public boolean isInstalled(String packageName, int userId) {
         
         if (shouldUseFallbackMode()) {

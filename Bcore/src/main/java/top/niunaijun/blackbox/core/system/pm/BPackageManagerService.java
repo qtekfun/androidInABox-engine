@@ -59,6 +59,7 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
     public static final String TAG = "BPackageManagerService";
     public static BPackageManagerService sService = new BPackageManagerService();
     private final Settings mSettings = new Settings();
+    private final AppFlagsStore mAppFlags = new AppFlagsStore(BEnvironment.getAppFlagsConf());
     private final ComponentResolver mComponentResolver;
     private static final BUserManagerService sUserManager = BUserManagerService.get();
     private final List<PackageMonitor> mPackageMonitors = new ArrayList<>();
@@ -599,6 +600,16 @@ public class BPackageManagerService extends IBPackageManagerService.Stub impleme
                 uninstallPackageAsUser(ps.pkg.packageName, userId);
             }
         }
+    }
+
+    @Override
+    public boolean getAppFlag(String packageName, int userId, int flag) {
+        return mAppFlags.get(packageName, userId, flag);
+    }
+
+    @Override
+    public void setAppFlag(String packageName, int userId, int flag, boolean on) {
+        mAppFlags.set(packageName, userId, flag, on);
     }
 
     @Override

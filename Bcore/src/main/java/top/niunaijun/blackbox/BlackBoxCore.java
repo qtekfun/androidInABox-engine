@@ -59,6 +59,7 @@ import top.niunaijun.blackbox.core.IOCore;
 import top.niunaijun.blackbox.utils.FileUtils;
 import top.niunaijun.blackbox.utils.ShellUtils;
 import top.niunaijun.blackbox.utils.Slog;
+import top.niunaijun.blackbox.core.system.pm.AppFlagsStore;
 import top.niunaijun.blackbox.utils.compat.HiddenApiGate;
 import top.niunaijun.blackbox.utils.SimpleCrashFix;
 import top.niunaijun.blackbox.utils.compat.BuildCompat;
@@ -1031,6 +1032,15 @@ public class BlackBoxCore extends ClientConfiguration {
 
     public static BJobManager getBJobManager() {
         return BJobManager.get();
+    }
+
+    /** Perfil de propiedades falso (Pixel 6) para una app; apagado por defecto. Se aplica al reiniciar la app. */
+    public boolean isPropertySpoofEnabled(String packageName, int userId) {
+        return getBPackageManager().getAppFlag(packageName, userId, AppFlagsStore.FLAG_PROPERTY_SPOOF);
+    }
+
+    public void setPropertySpoofEnabled(String packageName, int userId, boolean enabled) {
+        getBPackageManager().setAppFlag(packageName, userId, AppFlagsStore.FLAG_PROPERTY_SPOOF, enabled);
     }
 
     public static BPackageManager getBPackageManager() {

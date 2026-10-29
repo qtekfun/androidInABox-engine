@@ -46,4 +46,7 @@ interface IBPackageManagerService {
     boolean isInstalled(String packageName, int userId);
     List<InstalledPackage> getInstalledPackagesAsUser(int userId);
     String[] getPackagesForUid(int uid, int userId);
+
+    boolean getAppFlag(String packageName, int userId, int flag);
+    void setAppFlag(String packageName, int userId, int flag, boolean on);
 }
