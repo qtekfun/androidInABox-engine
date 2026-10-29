@@ -44,13 +44,47 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         return false;
     }
 
+    private static volatile boolean sImeiLogged;
+
+    /**
+     * IMEI sintético estable (15 dígitos con Luhn válido). El checkin de GMS rechaza cualquier otro formato
+     * ("is not a valid IMEI") y sin checkin no hay android_id ni inicio de sesión.
+     */
+    static String fakeImei() {
+        String h = Md5Utils.md5(BlackBoxCore.getHostPkg() + "/imei");
+        StringBuilder b = new StringBuilder("35");
+        for (int i = 0; b.length() < 14; i++) {
+            b.append((char) ('0' + Character.digit(h.charAt(i % h.length()), 16) % 10));
+        }
+        int sum = 0;
+        for (int i = 0; i < 14; i++) {
+            int d = b.charAt(13 - i) - '0';
+            if (i % 2 == 0) {
+                d *= 2;
+                if (d > 9) d -= 9;
+            }
+            sum += d;
+        }
+        b.append((char) ('0' + (10 - sum % 10) % 10));
+        if (!sImeiLogged) {
+            sImeiLogged = true;
+            Log.d(TAG, "IMEI sintético de 15 dígitos para el invitado (longitud " + b.length() + ")");
+        }
+        return b.toString();
+    }
+
+    /** MEID sintético: 14 dígitos hexadecimales. */
+    static String fakeMeid() {
+        return Md5Utils.md5(BlackBoxCore.getHostPkg() + "/meid").substring(0, 14).toUpperCase();
+    }
+
     @ProxyMethod("getDeviceId")
     public static class GetDeviceId extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
 
 
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            return fakeImei();
         }
     }
 
@@ -60,7 +94,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
 
 
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            return fakeImei();
         }
     }
 
@@ -70,7 +104,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
 
 
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            return fakeMeid();
         }
     }
 
@@ -95,7 +129,8 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetSubscriberId extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            // Sin SIM visible: el checkin de GMS rechaza identificadores que no sean IMSI de 15 dígitos
+            return null;
         }
     }
 
@@ -103,7 +138,7 @@ public class ITelephonyManagerProxy extends BinderInvocationStub {
     public static class GetDeviceIdWithFeature extends MethodHook {
         @Override
         protected Object hook(Object who, Method method, Object[] args) throws Throwable {
-            return Md5Utils.md5(BlackBoxCore.getHostPkg());
+            return fakeImei();
         }
     }
 
